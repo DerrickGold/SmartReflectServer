@@ -1,0 +1,106 @@
+#include <stdio.h>
+#include <syslog.h>
+
+#include "apiResponse.h"
+#include "misc.h"
+
+#define API_RETURN_FMT "%s:%s:%s:%s"
+#define API_RETURN_FMT_SIZE 5
+#define EMPTY_STR "\0"
+
+
+void APIResponse_free(APIResponse_t *response) {
+
+  if (!response)
+    return;
+
+  if (response->payload)
+    free(response->payload);
+
+  response->payload = NULL;
+  response->payloadSize = 0;
+
+  free(response);
+}
+
+APIResponse_t *APIResponse_new(void) {
+
+  APIResponse_t *response = calloc(1, sizeof(APIResponse_t));
+  if (!response) {
+    SYSLOG(LOG_ERR, "APIResponse_new: Error creating new response");
+    return NULL;
+  }
+
+  return response;
+}
+
+/*
+ * Append a string the payload response currently being
+ * built.
+ */
+int APIResponse_concat(APIResponse_t *response, char *str, int len) {
+
+  size_t newSize = response->payloadSize;
+  if (len > 0)
+    newSize += len;
+  else
+    newSize += strlen(str) + 1;
+
+  int firstAlloc = (response->payload == NULL);
+
+  //reallocate listing buffer to hold next name
+  char *temp = realloc(response->payload, newSize + 1);
+  if (!temp) {
+    SYSLOG(LOG_ERR, "api_payloadCat: Error resizing response payload: %s:%zu", str, newSize + 1);
+    APIResponse_free(response);
+    return -1;
+  }
+
+  response->payload = temp;
+  response->payloadSize = newSize;
+
+  if (firstAlloc)
+    response->payload[0] = '\0';
+
+  //add string to payload response
+  strcat(response->payload, str);
+  return 0;
+}
+
+/*
+ * Prepends api header response to a return value
+ */
+int APIResponse_send(APIResponse_t *response, struct lws *wsi, char *plugin, API_ACTION action, API_STATUS status) {
+
+  char *actionStr = (char *) allActions[action].name;
+  char *statusStr = (char *) API_STATUS_STRING[status];
+  char *plugName = EMPTY_STR;
+
+  if (plugin)
+    plugName = plugin;
+
+  size_t responseStrLen = strlen(statusStr) + strlen(actionStr) + API_RETURN_FMT_SIZE + strlen(plugName) + 1;
+
+  if (response->payload)
+    responseStrLen += strlen(response->payload);
+
+  char *responseStr = calloc(responseStrLen, sizeof(char));
+  if (!responseStr) {
+    SYSLOG(LOG_ERR, "APIResponse_send: Error allocating API Response");
+    return -1;
+  }
+
+  if (response->payload)
+    snprintf(responseStr, responseStrLen, API_RETURN_FMT, actionStr, statusStr, plugName, response->payload);
+  else
+    snprintf(responseStr, responseStrLen, API_RETURN_FMT, actionStr, statusStr, plugName, EMPTY_STR);
+
+  SYSLOG(LOG_INFO, "API Response: %s", responseStr);
+  int r = 0;
+
+  //message is already being sent, queue up another message
+  r = PluginSocket_writeToSocket(wsi, responseStr, -1);
+  free(responseStr);
+
+  return r;
+}

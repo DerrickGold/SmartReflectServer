@@ -1,0 +1,9 @@
+#SquareMove {
+background-color: red;
+color: black;
+position: absolute;
+width: 100px;
+height: 60px;
+left: 0;
+bottom: 0;
+}

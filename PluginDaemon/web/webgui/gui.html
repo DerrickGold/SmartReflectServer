@@ -1,0 +1,72 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Magic Mirror Plugin Manager</title>
+
+    <!-- Bootstrap -->
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+
+
+	<script src="js/jquery-1.12.1.min.js"></script>
+	<script src="js/bootstrap.min.js"></script>
+    <script src="/api/mirrorAPI.js"></script>
+    <script src="js/webgui.js"></script>
+    <script src="/api/moveMenu.js"></script>
+    <link rel="stylesheet" type="text/css" href="/api/moveMenu.css">
+    <link rel="stylesheet" type="text/css" href="css/webgui.css">
+
+    <script>
+
+    $(window).load(function() {
+        var mirror = new MirrorAPI();
+
+        mirror.onConnection(function() {
+            //start the mirror here
+            var gui = new WebGui(mirror);
+            /*setInterval(function() {
+                mirror.doAPICall("display");
+            }, 5000);*/
+        });
+
+    });
+    </script>
+</head>
+
+<body>
+<div id="content">
+	<div class="row">
+		<div class="Connected alert alert-warning" role="alert">
+			<strong>Warning:</strong> No Mirror display connected.
+		</div>
+		<h1 class="pgTitle">Plugin Web Configuration</h1>
+	</div>
+
+	<div class="RepositionMenu">
+		<div class="row">
+	    	<h1 class="pgTitle">Move Plugin</h1>
+	    </div>
+
+	    <div class="row">
+		    <div id="touchArea">
+		    	<div id="posMarker"></div>
+		        <h4 id="touchAreaLabel">Touch here to set plugin location.</h4>
+		    </div>
+		</div>
+
+	    <div class="btnGroup">
+	        <button type="button" class="btn btn-success">Save</button>
+	        <button type="button" class="btn btn-danger">Cancel</button>
+	    </div>
+	</div>
+
+
+	<div class="panel-group" id="accordion" role="tablist" aria-multiselectable="false">
+	</div>
+</div>
+</body>
+</html>

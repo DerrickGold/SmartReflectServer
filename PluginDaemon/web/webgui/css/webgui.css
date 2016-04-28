@@ -1,0 +1,24 @@
+#content {
+    width: 100%;
+    height: 100%;
+    overflow-x: hidden;
+}
+
+.pgTitle {
+    text-align: center;
+}
+
+.label {
+	min-width: 60px;
+	margin-right: 5px;
+	display: inline-block;
+}
+.btn {
+    margin-right: 5px;
+}
+
+
+
+.Connected {
+	display: none;
+}

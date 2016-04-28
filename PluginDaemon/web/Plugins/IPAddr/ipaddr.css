@@ -1,0 +1,10 @@
+#IPAddr {
+font-family: "Lucida Console", Courier, monospace;
+font-size: 16pt;
+
+position: absolute;
+width: 900px;
+height: 200px;
+left: 0;
+bottom: 0;
+}

@@ -1,0 +1,55 @@
+<!doctype html>
+
+<html lang="en">
+  <head>
+ 	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>JS Clock Configuration Menu</title>
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+
+
+	<script src="js/jquery-1.12.1.min.js"></script>
+	<script src="js/bootstrap.min.js"></script>
+	<script src="/api/mirrorAPI.js"></script>
+
+	<script>
+	var pluginName ="JSClock1";
+
+    $(window).load(function() {
+        var mirror = new MirrorAPI();
+
+        mirror.onConnection(function() {
+
+        	mirror.onAPIResponse("jscmd", function(status, plugin, payload) {
+        		if (payload.fn == "getPeriod") {
+        			if (payload.value != undefined && payload.value.length > 0)
+	        			$("#seconds").val(parseInt(payload.value));
+	        	}
+        	});
+
+        	//get the current redraw period
+        	mirror.doAPICall('jscmd', pluginName, {fn: "getPeriod", args: null});
+
+        	$('#seconds').change(function(e) {
+        		console.log(e);
+        		mirror.doAPICall('jscmd', pluginName, {fn: 'setPeriod', args: e.target.value});
+        	});
+
+        });
+
+    });
+    </script>
+  </head>
+  <body>
+ 	<h1 class="pgTitle">JSClock Configuration</h1>
+
+
+    <div class="input-group">
+    	<label for "seconds">Redraw Period (in seconds): </label>
+    	<input type="number" id="seconds"/>
+    </div>
+
+  </body>
+</html>
