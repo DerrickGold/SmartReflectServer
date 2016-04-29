@@ -12,6 +12,19 @@ Features include:
 * Built in scheduler for running short lived scripts/programs and redirecting their output onto the mirror display
 * Easy to add/remove plugins, no coding necessary; just drag and drop them into the necessary folder!
 
+##Screenshots:
+![Mirror display](https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/Display.png)
+
+Fortune piped into Cowsay bash script on display. 
+
+![Web GUI] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/WebManager.png)
+
+The web GUI for enabling, disabline, and moving plugins, or accessing plugin specific settings.
+
+![Moving Plugin] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/MovePlugin.png)
+
+Rearrange your plugins using your phone touch screen via the web GUI!
+
 ##Wiki
 Please refer to the Wiki for further details on setup, operation, and plugin development.
 [The Wiki] (../../wiki)
