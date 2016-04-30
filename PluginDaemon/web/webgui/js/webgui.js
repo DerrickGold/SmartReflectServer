@@ -114,6 +114,9 @@ var WebGui = function(mirrorAPI) {
 
         $(movButton).click(function() {
             mirrorAPI.doAPICall("getcss", plugin, cssProperties);
+
+            //hide plugins when in move menu
+            $('#accordion').hide();
             instance.movemenu.showMirror();
         });
 
@@ -156,15 +159,14 @@ var WebGui = function(mirrorAPI) {
 	}
 
     this.initMoveMenu = function(mirrorWidth, mirrorHeight) {
-                //initMoveMenu();
         instance.movemenu = new MoveMenu(mirrorWidth, mirrorHeight, function(left, top) {
+                //move callback, update plugin position temporarily based on movemenu position
 
                 if (panels[selectedPlugin.name].csssent == instance.curSent)
                     return;
 
                 instance.curSent = panels[selectedPlugin.name].csssent;
 
-                //move callback
                 if (!instance.initialMove) {
                     mirrorAPI.doAPICall("setcss", selectedPlugin.name, {
                         "position":"absolute",
@@ -182,9 +184,11 @@ var WebGui = function(mirrorAPI) {
                         }, true);
                 }
             },
+
+            //cancel callback, exits move menu without saving new position
             function() {
-                console.log("CANCEL MOVE");
-                //cancel callback
+                //show plugins when exiting move menu
+                $('#accordion').show();
 
                 //revert plugin on mirror back to its original location
                 //copy all plugin settings and set them to NULL to be removed
@@ -199,12 +203,14 @@ var WebGui = function(mirrorAPI) {
                         styles[prop] = property;
                     }
                 }
-                console.log(styles);
                 mirrorAPI.doAPICall("setcss", selectedPlugin.name, selectedPlugin["css"]);
                 instance.initialMove = false;
             },
-            //save cb
+            //save cb, exits menu and saves position
             function() {
+                //show plugins when exiting move menu
+                $('#accordion').show();
+
                 mirrorAPI.doAPICall("dumpcss", selectedPlugin.name, null);
                 instance.initialMove = false;
             });
