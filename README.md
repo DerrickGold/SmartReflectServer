@@ -11,7 +11,7 @@ The biggest flaw of the typical Smart Mirror setup is the utilization of the web
 As a result, current smart mirror software solutions are limited in that they: 
   1. are not truly modular, plugin systems exist but require some JavaScript knowledge to enable, disable, or configure plugins 
   2. utilize complicated server side solutions that are typically geared for web sites and REST API’s. This limitation is further amplified by the fact that users typically have no easy way of generating events to obtain data through an already established design principle
-  3. not inclusive for all programmers and programming methodologies. Only JavaScript is supported which in the web browser is geared for event driven programming. No solutions have existed for supporting other programming languages with their vast libraries of features or user base, thus, fragmenting the potential pool of developers for extending smart mirror features.
+  3. not inclusive for all programmers and programming methodologies. Only JavaScript is supported which in the web browser is geared for event driven programming. So far, no solutions through the browser display system  exist for supporting other programming languages with their vast libraries of features or user base, thus, fragmenting the potential pool of developers for extending smart mirror features.
 
 That being said, there are still some obvious benefits for using a web browser for displaying information:
   1. it is scriptable with JavaScript and customizable with CSS
