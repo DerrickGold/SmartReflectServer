@@ -47,6 +47,7 @@ Please refer to the Wiki for further details on setup, operation, and plugin dev
 ##Project History
 This project started as a capstone project for our (Derrick and David) Computer Science degree. Our semester was only 3 months long, so with other classes going on, not a lot of time could be put into the project; it's more or less a proof of concept system. This repository is a second repository with all our capstone specific information and code that is not necessary removed for the sake of keeping our original repository intact for marking and historic purposes; hence the suddenly populated repository.
 
-Our prototype mirror utilizes a Raspberry Pi 2B with a 3.5" touch screen on it for interactive demos.
+Our prototype mirror utilizes a Raspberry Pi 2B with a 3.5" touch screen on it for interactive demos as seen below.
+[Prototype Hardware](https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/Prototype.jpg)
 
 
