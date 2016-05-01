@@ -1,5 +1,5 @@
 # Smart Reflect Server
-A modular Smart Mirror software solution with API's for external hardware interaction.
+A modular Smart Mirror software solution with API's for external hardware interaction, and support for plugins written in any programming language.
 
 
 ##About:
