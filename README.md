@@ -6,7 +6,7 @@ A modular Smart Mirror software solution with API's for external hardware intera
 The major flaw of the typical Smart Mirror setups is the utilization of the web browser as the mirror display’s form of information presentation. Web browsers create a sandboxed environment for the code that runs within it which limits hardware access and is typically driven through user events generated on the displayed web page. These limitations pose a few problems: 
   1. user events can not be generated naturally in a browser when one interacts with the browser as one would a mirror; 
   2. the “sandboxed” environment limits the use of external hardware to generate new events based on typical mirror interaction; 
-  3. only JavaScript runs natively in web browsers. 
+  3. so far, only JavaScript runs natively in web browsers. 
 
 As a result, current smart mirror software solutions are limited in that they: 
   1. are not truly modular, plugin systems exist but require some JavaScript knowledge to enable, disable, or configure plugins 
