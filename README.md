@@ -20,7 +20,7 @@ That being said, there are still some obvious benefits for using a web browser f
 
 Smart Reflect Server solves these browser limitations by creating and managing a real time communication API for plugin communications. This allows native programs and scripts to send draw calls and retreive information from the web browser display with all the scripting and styling benefits of using a web browser for presenting plugin information.
 
-###Features include:
+###Features:
 * Support for plugins written in any programming language! 
 * An API for any program to update their own web display and web configuration
 * An API for managing plugins with built in web interface (enabling/disabling plugins + re-arranging plugins) 
