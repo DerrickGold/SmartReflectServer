@@ -4,7 +4,7 @@
 #-----------------------------------------------------------------------------------
 #Some project information
 #-----------------------------------------------------------------------------------
-NAME 		:= 	magic-mirror
+NAME 		:= 	smartreflect
 TARGET		:=	$(NAME)
 BUILD		:=	build
 
@@ -19,7 +19,7 @@ LIBS 		:=
 EXTLIBS 	:= -lm -luuid -lrt -L/usr/local/lib -lwebsockets
 
 
-CFLAGS += -std=gnu99 -O3 -Wall -march=armv7-a -mfloat-abi=hard -mfpu=vfpv3-d16
+CFLAGS += -std=gnu99 -O3 -Wall
 #compiler tools
 CC 	= gcc
 CXX = gcc
