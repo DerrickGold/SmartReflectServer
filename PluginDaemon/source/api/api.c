@@ -581,6 +581,10 @@ static int API_Callback(struct lws *wsi, websocket_callback_type reason, void *u
       break;
 
     case LWS_CALLBACK_RECEIVE: {
+
+      if (!len)
+        return 0;
+
       SYSLOG(LOG_INFO, "InputReader received command");
 
       SocketResponse_build(&inputResponse, wsi, (char *) in, len);
@@ -590,11 +594,11 @@ static int API_Callback(struct lws *wsi, websocket_callback_type reason, void *u
           parseInput(SocketResponse_get(&inputResponse),
                      SocketResponse_size(&inputResponse), wsi);
 
-          SocketResponse_free(&inputResponse);
         }
-
+        SocketResponse_free(&inputResponse);
       }
     } break;
+
     case LWS_CALLBACK_CLOSED:
       SYSLOG(LOG_INFO, "InputReader disconnect[%s]", proto->name);
       SocketResponse_free(&inputResponse);

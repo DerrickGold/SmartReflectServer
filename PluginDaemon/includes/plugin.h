@@ -82,9 +82,6 @@ typedef struct Plugin_s {
     //size of last frontend response message
     SocketResponse_t clientResponse;
     SocketResponse_t externResponse;
-    /*size_t clientResponseSize;
-    char *clientResponse;
-    char clientResponseDone;*/
 
     //socket instances
     struct lws *socketInstance;
@@ -93,12 +90,7 @@ typedef struct Plugin_s {
     //hash table for storing css data
     HashTable_t *cssAttr;
 
-    //data for async css sending
-    size_t lastSentCSS;
-    int loadedSavedCSS;
-
     PluginConf_t config;
-
 
     int writeable;
 } Plugin_t;
@@ -224,11 +216,8 @@ extern void PluginCSS_dump(Plugin_t *plugin);
 
 extern void PluginCSS_load(Plugin_t *plugin);
 
-extern int PluginCSS_sendSaved(Plugin_t *plugin);
+extern int PluginCSS_sendAll(Plugin_t *plugin);
 
-extern void PluginCSS_asyncSendSaved(Plugin_t *plugin);
-
-extern void PluginCSS_sendDisplaySettings(Plugin_t *plugin);
 
 //extern int Plugin_SocketCallback(struct lws *wsi, websocket_callback_type reason, void *user,  void *in, size_t len);
 

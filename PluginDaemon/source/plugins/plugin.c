@@ -113,6 +113,7 @@ static int Plugin_SocketCallback(struct lws *wsi, websocket_callback_type reason
   switch (reason) {
     case LWS_CALLBACK_SERVER_WRITEABLE:
       break;
+
     case LWS_CALLBACK_ESTABLISHED: {
       //SYSLOG(LOG_INFO, "Plugin_SocketCallback established[%s]", proto->name);
       Plugin_t *plugin = (Plugin_t *) proto->user;
@@ -129,6 +130,10 @@ static int Plugin_SocketCallback(struct lws *wsi, websocket_callback_type reason
       break;
 
     case LWS_CALLBACK_RECEIVE: {
+
+      if (!proto || !len)
+        return 0;
+
       Plugin_t *plugin = (Plugin_t *) proto->user;
       SYSLOG(LOG_INFO, "Plugin_SocketCallback received[%s] %s", proto->name, (char *) in);
 
@@ -143,13 +148,12 @@ static int Plugin_SocketCallback(struct lws *wsi, websocket_callback_type reason
         if (!strcmp((char *) clientData, PLUGIN_CLIENT_LOADED_MSG)) {
           //set plugin as loaded
           plugin->flags |= PLUGIN_FLAG_LOADED;
-          PluginCSS_sendDisplaySettings(plugin);
           SYSLOG(LOG_INFO, "Plugin_SocketCallback: confirmed plugin load: %s", proto->name);
-          PluginCSS_asyncSendSaved(plugin); //start the css settings transfer
+          PluginCSS_sendAll(plugin);
           return 0;
         } else {
 
-          PluginCSS_asyncSendSaved(plugin);
+          //PluginCSS_asyncSendSaved(plugin);
           //if there is an external client connected specifically for this plugin, send them a response
           if (plugin->externSocketInstance)
             PluginSocket_writeToSocket(plugin->externSocketInstance, clientData, clientSize);
@@ -211,41 +215,43 @@ static int Plugin_ExternalSocketCallback(struct lws *wsi, websocket_callback_typ
 
       if (proto) {
         Plugin_t *plugin = (Plugin_t *) proto->user;
-        if (!plugin->externSocketInstance) {
-          plugin->externSocketInstance = wsi;
-        }
+        plugin->externSocketInstance = wsi;
       }
     }
       break;
 
     case LWS_CALLBACK_RECEIVE:
-      //SYSLOG(LOG_INFO, "Plugin_ExternalSocketCallback received[%s] %s", proto->name, (char*)in);
-      if (proto) {
-        Plugin_t *plugin = (Plugin_t *) proto->user;
 
-        if (!plugin->socketInstance) {
-          SYSLOG(LOG_ERR, "Plugin_ExternalSocketCallback: Error, no connection to front end [%s->%s]",
-                 proto->name, Plugin_GetWebProtocol(plugin));
-
-          //discard partial messages from disconnection
-          SocketResponse_free(&plugin->externResponse);
-          return 0;
-        }
-
-        SocketResponse_t *externResponse = &plugin->externResponse;
-        SocketResponse_build(externResponse, wsi, (char *) in, len);
-        if (SocketResponse_done(externResponse)) {
-          /*
-           * If this daemon receives a message from an external application, forward
-           * it to the right plugin interface.
-           */
-          PluginSocket_writeToSocket(plugin->socketInstance,
-                                     SocketResponse_get(externResponse),
-                                     SocketResponse_size(externResponse)-1);
-        }
+      if (!proto || !len)
+        return 0;
 
 
+      Plugin_t *plugin = (Plugin_t *) proto->user;
+
+      if (!plugin->socketInstance) {
+        SYSLOG(LOG_ERR, "Plugin_ExternalSocketCallback: Error, no connection to front end [%s->%s]",
+               proto->name, Plugin_GetWebProtocol(plugin));
+
+        //discard partial messages from disconnection
+        SocketResponse_free(&plugin->externResponse);
+        return 0;
       }
+
+      SocketResponse_t *externResponse = &plugin->externResponse;
+      SocketResponse_build(externResponse, wsi, (char *) in, len);
+      if (SocketResponse_done(externResponse)) {
+        /*
+         * If this daemon receives a message from an external application, forward
+         * it to the right plugin interface.
+         */
+
+        PluginSocket_writeToSocket(plugin->socketInstance,
+                                   SocketResponse_get(externResponse),
+                                   SocketResponse_size(externResponse)-1);
+      }
+
+
+
       break;
     case LWS_CALLBACK_CLOSED: {
       SYSLOG(LOG_INFO, "Plugin_ExternalSocketCallback disconnect[%s]", proto->name);
@@ -899,9 +905,6 @@ void PluginCSS_dump(Plugin_t *plugin) {
 
 void PluginCSS_load(Plugin_t *plugin) {
 
-  //css is no longer loaded
-  plugin->loadedSavedCSS = -1;
-
   //generate path for saved css settings
   char filepath[PATH_MAX];
   snprintf(filepath, PATH_MAX, PLUGIN_SAVED_CSS_LOCATION, Plugin_GetDirectory(plugin));
@@ -951,12 +954,10 @@ void PluginCSS_load(Plugin_t *plugin) {
   fclose(dumpFile);
 }
 
-int PluginCSS_sendSaved(Plugin_t *plugin) {
-
+int PluginCSS_sendAll(Plugin_t *plugin) {
   SYSLOG(LOG_INFO, "PluginCSS_sendSaved: Sending saved CSS");
   if (!plugin->cssAttr) {
     SYSLOG(LOG_INFO, "PluginCSS_sendSaved: No CSS to send!");
-    plugin->loadedSavedCSS = 1;
     return 0;
   }
 
@@ -964,47 +965,21 @@ int PluginCSS_sendSaved(Plugin_t *plugin) {
   char buf[PATH_MAX];
   HashTable_t *table = plugin->cssAttr;
 
-  //find next entry that needs to be sent
-  size_t lastEntry = plugin->lastSentCSS + 1;
-
+  int entryIndex = 0;
   //skip empty entries
-  while (!table->entries[lastEntry] && lastEntry < table->size)
-    lastEntry++;
+  while (entryIndex < table->size) {
 
-  if (lastEntry >= table->size) {
-    SYSLOG(LOG_INFO, "PluginCSS_sendSaved: No more css entries!");
-    plugin->loadedSavedCSS = 1;
-    return 0;
+    HashData_t *entry = table->entries[entryIndex];
+
+    if (entry && entry->key && entry->value) {
+      snprintf(buf, PATH_MAX, "%s=%s;", entry->key, entry->value);
+      SYSLOG(LOG_INFO, "PluginCSS_sendSaved: %s", buf);
+      Plugin_SendMsg(plugin, "setcss", buf);
+    }
+    entryIndex++;
   }
 
-  plugin->lastSentCSS = lastEntry;
-  //skip entries where key may not be set (malformed entries)
-  HashData_t *entry = table->entries[lastEntry];
-  if (entry->key && entry->value) {
-
-    snprintf(buf, PATH_MAX, "%s=%s;", entry->key, entry->value);
-    SYSLOG(LOG_INFO, "PluginCSS_sendSaved: %s", buf);
-    Plugin_SendMsg(plugin, "setcss", buf);
-    plugin->loadedSavedCSS = 0;
-    return 1;
-  }
-
-  plugin->loadedSavedCSS = 1;
-  SYSLOG(LOG_INFO, "PluginCSS_sendSaved: blank entry?");
   return 0;
 }
-
-void PluginCSS_asyncSendSaved(Plugin_t *plugin) {
-
-  if (!plugin->loadedSavedCSS)
-    PluginCSS_sendSaved(plugin);
-}
-
-void PluginCSS_sendDisplaySettings(Plugin_t *plugin) {
-
-  plugin->lastSentCSS = 0;
-  plugin->loadedSavedCSS = 0;
-}
-
 
 
