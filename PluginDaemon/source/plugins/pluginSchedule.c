@@ -32,7 +32,7 @@ static int _scheduleHandler(void *data) {
   if (plugin->flags & PLUGIN_FLAG_SCRIPT_BACKGROUND) {
     plugin->flags |= PLUGIN_FLAG_INBG;
     plugin->bgScriptPID = Script_ExecInBg(PluginConf_GetEscapeScript(plugin),
-      Plugin_GetDaemonProtocol(plugin), PluginSocket_GetPort());
+                                          Plugin_GetDaemonProtocol(plugin), PluginSocket_GetPort());
 
     //remove this event from scheduler, the script or program will drive this plugin
     return -1;

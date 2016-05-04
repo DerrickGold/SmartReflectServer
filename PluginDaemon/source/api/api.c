@@ -201,7 +201,8 @@ static int api_PluginDisable(void *plug, void *data) {
 }
 
 
-static int api_response(APIResponse_t *response, struct lws *wsi, Plugin_t *plugin, APIAction_e action, APIStatus_e status) {
+static int api_response(APIResponse_t *response, struct lws *wsi, Plugin_t *plugin, APIAction_e action,
+                        APIStatus_e status) {
 
   char *plugName = NULL;
   if (plugin)
@@ -212,7 +213,8 @@ static int api_response(APIResponse_t *response, struct lws *wsi, Plugin_t *plug
 
 
 static int _pluginList(void *plugin, void *data) {
-  APIResponse_t *response = (APIResponse_t *)data;
+
+  APIResponse_t *response = (APIResponse_t *) data;
 
   char *name = Plugin_GetName((Plugin_t *) plugin);
   APIResponse_concat(response, name, -1);
@@ -224,7 +226,8 @@ static int _pluginList(void *plugin, void *data) {
 /*
  * Sets an action to wait for a response from the daemon plugin communicator.
  */
-static APIStatus_e api_waitForDaemonResponse(APIResponse_t *response, APIAction_e action, Plugin_t *plugin, struct lws *socket) {
+static APIStatus_e api_waitForDaemonResponse(APIResponse_t *response, APIAction_e action, Plugin_t *plugin,
+                                             struct lws *socket) {
 
   if (!Display_IsDisplayConnected()) {
     APIResponse_concat(response, "No display connected.", -1);
@@ -246,7 +249,8 @@ static APIStatus_e api_waitForDaemonResponse(APIResponse_t *response, APIAction_
  * Sets an action to wait for a response for a value obtained from
  * a plugin's frontend.
  */
-static APIStatus_e api_waitForPluginResponse(APIResponse_t *response, APIAction_e action, Plugin_t *plugin, struct lws *socket) {
+static APIStatus_e api_waitForPluginResponse(APIResponse_t *response, APIAction_e action, Plugin_t *plugin,
+                                             struct lws *socket) {
 
   if (!Plugin_isConnected(plugin)) {
     APIResponse_concat(response, "Plugin not connected to frontend", -1);
@@ -597,7 +601,8 @@ static int API_Callback(struct lws *wsi, websocket_callback_type reason, void *u
         }
         SocketResponse_free(&inputResponse);
       }
-    } break;
+    }
+      break;
 
     case LWS_CALLBACK_CLOSED:
       SYSLOG(LOG_INFO, "InputReader disconnect[%s]", proto->name);

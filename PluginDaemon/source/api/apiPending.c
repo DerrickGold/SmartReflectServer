@@ -80,7 +80,7 @@ void APIPending_freeSlot(int slot) {
 
 void APIPending_update(void) {
 
-   do {
+  do {
 
     char *resp = NULL;
     PendingAction_t *pending = &pendingActions[updateAction];

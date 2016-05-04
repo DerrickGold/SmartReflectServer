@@ -154,7 +154,6 @@ extern char *Plugin_ClientGetResponse(Plugin_t *plugin);
 extern size_t Plugin_ClientGetResponseSize(Plugin_t *plugin);
 
 
-
 extern int Plugin_ResetSchedule(Plugin_t *plugin);
 
 extern int Plugin_SetSchedule(Plugin_t *plugin);

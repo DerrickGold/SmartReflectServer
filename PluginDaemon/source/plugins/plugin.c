@@ -247,9 +247,8 @@ static int Plugin_ExternalSocketCallback(struct lws *wsi, websocket_callback_typ
 
         PluginSocket_writeToSocket(plugin->socketInstance,
                                    SocketResponse_get(externResponse),
-                                   SocketResponse_size(externResponse)-1);
+                                   SocketResponse_size(externResponse) - 1);
       }
-
 
 
       break;
@@ -577,11 +576,13 @@ int Plugin_SendMsg(Plugin_t *plugin, char *command, char *data) {
 
 
 void Plugin_ClientFreeResponse(Plugin_t *plugin) {
+
   SocketResponse_free(&plugin->clientResponse);
 }
 
 
 char Plugin_ClientResponseDone(Plugin_t *plugin) {
+
   return SocketResponse_done(&plugin->clientResponse);
 }
 
@@ -594,9 +595,6 @@ size_t Plugin_ClientGetResponseSize(Plugin_t *plugin) {
 
   return SocketResponse_size(&plugin->clientResponse);
 }
-
-
-
 
 
 int Plugin_isEnabled(Plugin_t *plugin) {
@@ -955,6 +953,7 @@ void PluginCSS_load(Plugin_t *plugin) {
 }
 
 int PluginCSS_sendAll(Plugin_t *plugin) {
+
   SYSLOG(LOG_INFO, "PluginCSS_sendSaved: Sending saved CSS");
   if (!plugin->cssAttr) {
     SYSLOG(LOG_INFO, "PluginCSS_sendSaved: No CSS to send!");

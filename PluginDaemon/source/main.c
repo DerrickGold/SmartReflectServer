@@ -120,6 +120,7 @@ static int _initPluginFrontendCom(void *plug, void *data) {
 }
 
 static int _disconnectPluginFrontendCom(void *plug, void *data) {
+
   Plugin_t *plugin = (Plugin_t *) plug;
   return Display_UnloadPlugin(plugin);
 }
@@ -135,6 +136,7 @@ static int _rescheduleDisconnected(void *plug, void *data) {
   Plugin_ResetSchedule(plugin);
   return 0;
 }
+
 /*
  * Loads a plugin from a directory to the mirror.
  * This should be called after a connection has been made to
@@ -142,6 +144,7 @@ static int _rescheduleDisconnected(void *plug, void *data) {
  * a plugin on the fly
  */
 static int LoadPlugin(char *directory) {
+
   struct stat st;
   lstat(directory, &st);
 
@@ -248,6 +251,7 @@ static int initializeDaemon(char *localDir, char *pluginDir, int portNum) {
  * --pause plugins when disconnected from frontend and resume when reconnected...
  */
 static int daemonProcess(void) {
+
   int oldWebStatus = 0, curWebStatus = 0;
 
   int pluginSent = 0;
@@ -264,7 +268,7 @@ static int daemonProcess(void) {
         SYSLOG(LOG_INFO, "Main: Daemon successfully connected to web front end.");
         if (!pluginSent) {
           printf("Connecting plugins\n");
-          if(PluginList_ForEach(_initPluginFrontendCom, NULL)) {
+          if (PluginList_ForEach(_initPluginFrontendCom, NULL)) {
             //assumes plugin loaded successfully until otherwise
             //error initializing stuff, unload the last send stuff
             PluginList_ForEach(_disconnectPluginFrontendCom, NULL);
@@ -290,6 +294,7 @@ static int daemonProcess(void) {
 }
 
 static void printHelp() {
+
   printf(HELP_TEXT, prgmName);
 }
 
@@ -333,7 +338,7 @@ int main(int argc, char *argv[]) {
 
   char *absPluginPath = realpath(runDir, NULL);
   //initialize the daemon and all the plugins
-  if (initializeDaemon(absPluginPath, filepath, port))  {
+  if (initializeDaemon(absPluginPath, filepath, port)) {
     free(absPluginPath);
     return EXIT_SUCCESS;
   }

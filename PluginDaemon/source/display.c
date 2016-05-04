@@ -76,7 +76,6 @@ const char *indexFooter =
                 "</html>";
 
 
-
 static char *includeJSString(char *path, char *file) {
 
   size_t bufLen = strlen(INCLUDE_JS_START) + strlen(path) + strlen(file)

@@ -23,5 +23,4 @@ extern char *SocketResponse_get(SocketResponse_t *sockr);
 extern size_t SocketResponse_size(SocketResponse_t *sockr);
 
 
-
 #endif //MAGICMIRROR_SOCKETRESPONSE_H

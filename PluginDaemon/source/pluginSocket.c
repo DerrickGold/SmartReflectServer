@@ -65,7 +65,7 @@ static void flushSocketWrites(void) {
 
   int slot = WriteBuffer.lastWritten;
 
-  while(!WriteBuffer.writes[slot].socket || lws_partial_buffered(WriteBuffer.writes[slot].socket)) {
+  while (!WriteBuffer.writes[slot].socket || lws_partial_buffered(WriteBuffer.writes[slot].socket)) {
     slot++;
     slot %= NUM_BUFFERED_WRITES;
 
@@ -85,9 +85,6 @@ static void flushSocketWrites(void) {
 }
 
 
-
-
-
 /*
  * Dynamically allocated list of protocols.
  * Grows as more protocols are added.
@@ -103,7 +100,6 @@ struct lws_protocols *_protocols = NULL;
 struct lws_protocols listTerminator = {
         .name=NULL, .callback=NULL
 };
-
 
 
 /*
@@ -401,6 +397,7 @@ int PluginSocket_writeToSocket(struct lws *wsi_in, char *str, int str_size_in) {
  * on a specified port number.
  */
 static struct lws_context *_makeContext(int port) {
+
   portNumber = port;
   PluginSocket_AddProtocol(&listTerminator);
   printProtocols();
@@ -459,8 +456,10 @@ int PluginSocket_Start(int port) {
 
 
 int PluginSocket_GetPort(void) {
+
   return portNumber;
 }
+
 /*
  * Destroys and frees all memory associated
  * with the daemon's socket server instance.

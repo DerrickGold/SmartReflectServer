@@ -53,6 +53,7 @@ int SocketResponse_build(SocketResponse_t *sockr, struct lws *wsi, char *respons
 
 
 char SocketResponse_done(SocketResponse_t *sockr) {
+
   return sockr->complete;
 }
 
