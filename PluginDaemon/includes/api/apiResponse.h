@@ -19,6 +19,6 @@ extern APIResponse_t *APIResponse_new(void);
 
 extern int APIResponse_concat(APIResponse_t *response, char *str, int len);
 
-extern int APIResponse_send(APIResponse_t *response, struct lws *wsi, char *plugin, API_ACTION action, API_STATUS status);
+extern int APIResponse_send(APIResponse_t *response, struct lws *wsi, char *plugin, APIAction_e action, APIStatus_e status);
 
 #endif //MAGICMIRROR_APIRESPONSE_H

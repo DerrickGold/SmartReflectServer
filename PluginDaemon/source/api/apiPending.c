@@ -19,8 +19,8 @@
 
 //some actions may require multiple cycles to update
 typedef struct PendingAction_s {
-    APIPENDING_TYPE type;
-    API_ACTION action;
+    APIPendingType_e type;
+    APIAction_e action;
     Plugin_t *plugin;
     struct lws *socket;
     int started;
@@ -48,7 +48,7 @@ int APIPending_getFreeSlot(void) {
 }
 
 
-int APIPending_addAction(APIPENDING_TYPE type, API_ACTION action, Plugin_t *plugin, struct lws *socket) {
+int APIPending_addAction(APIPendingType_e type, APIAction_e action, Plugin_t *plugin, struct lws *socket) {
 
   int slot = APIPending_getFreeSlot();
 

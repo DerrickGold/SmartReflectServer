@@ -11,13 +11,13 @@
 typedef enum {
     APIPENDING_PLUGIN,
     APIPENDING_DISPLAY,
-} APIPENDING_TYPE;
+} APIPendingType_e;
 
 void APIPending_init(void);
 
 extern int APIPending_getFreeSlot(void);
 
-extern int APIPending_addAction(APIPENDING_TYPE type, API_ACTION action, Plugin_t *plugin, struct lws *socket);
+extern int APIPending_addAction(APIPendingType_e type, APIAction_e action, Plugin_t *plugin, struct lws *socket);
 
 extern void APIPending_freeSlot(int slot);
 

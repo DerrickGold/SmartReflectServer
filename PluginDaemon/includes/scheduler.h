@@ -21,13 +21,13 @@ typedef struct Schedule_s {
 
 typedef enum {
     SCHEDULER_PAUSE, SCHEDULER_RESUME
-} SCHEDULER_STATE;
+} SchedulerState_e;
 
 extern int Scheduler_setCallback(Schedule_t *schedule, int (*cb)(void *), void *data);
 
 extern int Scheduler_createTimer(Schedule_t *schedule, int length);
 
-extern int Scheduler_pause(Schedule_t *schedule, SCHEDULER_STATE state);
+extern int Scheduler_pause(Schedule_t *schedule, SchedulerState_e state);
 
 extern int Scheduler_start(Schedule_t *schedule);
 

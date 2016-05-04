@@ -70,7 +70,7 @@ int APIResponse_concat(APIResponse_t *response, char *str, int len) {
 /*
  * Prepends api header response to a return value
  */
-int APIResponse_send(APIResponse_t *response, struct lws *wsi, char *plugin, API_ACTION action, API_STATUS status) {
+int APIResponse_send(APIResponse_t *response, struct lws *wsi, char *plugin, APIAction_e action, APIStatus_e status) {
 
   char *actionStr = (char *) allActions[action].name;
   char *statusStr = (char *) API_STATUS_STRING[status];

@@ -132,7 +132,7 @@ void Scheduler_setImmediateUpdate(Schedule_t *schedule) {
 }
 
 //Pause the scheduled event updates
-int Scheduler_pause(Schedule_t *schedule, SCHEDULER_STATE state) {
+int Scheduler_pause(Schedule_t *schedule, SchedulerState_e state) {
 
   if (!schedule) {
     SYSLOG(LOG_INFO, "Scheduler_pause: NULL Schedule provided.");

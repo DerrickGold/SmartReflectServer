@@ -105,7 +105,7 @@ typedef enum {
     PLUGIN_FLAG_SCRIPT_BACKGROUND = (1 << 6),
     PLUGIN_FLAG_LOADED = (1 << 7),
     PLUGIN_FLAG_INBG = (1 << 8),
-} PLUGIN_FLAGS;
+} PluginFlags_e;
 
 
 extern const char Plugin_Commands[][MAX_COMMANDS];

@@ -6,7 +6,7 @@ typedef enum {
     FAIL,
     PENDING,
     BUSY,
-} API_STATUS;
+} APIStatus_e;
 
 extern const char *API_STATUS_STRING[];
 
@@ -33,22 +33,22 @@ typedef enum {
     GET_CONFIG,
     SET_CONFIG,
     ACTION_COUNT
-} API_ACTION;
+} APIAction_e;
 
 
 typedef struct API_Command_s {
-    API_ACTION actionID;
+    APIAction_e actionID;
     char *name;
     int flag;
-} API_Command_t;
+} APICommand_t;
 
 typedef enum {
     NONE = 0,
     NEED_PLUGIN = (1 << 0),
     NEED_VALUES = (1 << 1)
-} ACTION_FLAGS;
+} APIActionFlags_e;
 
-extern API_Command_t allActions[ACTION_COUNT];
+extern APICommand_t allActions[ACTION_COUNT];
 
 extern void API_Init(void);
 

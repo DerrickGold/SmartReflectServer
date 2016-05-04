@@ -27,7 +27,7 @@ typedef enum {
     TYPE_NOTPATH = 0,
     TYPE_FILEPATH,
     TYPE_SCRIPTPATH,
-} CONF_PROPERTY_TYPE;
+} ConfigPropertyType_e;
 
 
 static char *configGetString(Plugin_t *plugin, char *setting) {
@@ -132,9 +132,9 @@ static char *makeAbsPath(Plugin_t *plugin, char *path) {
 }
 
 
-static CONF_PROPERTY_TYPE getKnownSettingType(char *property) {
+static ConfigPropertyType_e getKnownSettingType(char *property) {
 
-  CONF_PROPERTY_TYPE type = TYPE_NOTPATH;
+  ConfigPropertyType_e type = TYPE_NOTPATH;
   //element it coresponds to.
   if (!strncmp(property, PLUGIN_CONF_TAG_HTML, strlen(property))) {
     type = TYPE_FILEPATH;
@@ -157,7 +157,7 @@ static CONF_PROPERTY_TYPE getKnownSettingType(char *property) {
   return type;
 }
 
-static int pluginStoreSettingWithType(Plugin_t *plugin, char *property, char *value, CONF_PROPERTY_TYPE fileType) {
+static int pluginStoreSettingWithType(Plugin_t *plugin, char *property, char *value, ConfigPropertyType_e fileType) {
 
   //store original config value into config hash for plugin
   size_t origKeyLen = strlen(property) + strlen(PLUGIN_CONF_ORIGTAG) + 1;
@@ -239,7 +239,7 @@ int Plugin_confApply(void *data, char *property, char *value) {
   if (!property) return 0;
 
 
-  CONF_PROPERTY_TYPE fileType = getKnownSettingType(property);
+  ConfigPropertyType_e fileType = getKnownSettingType(property);
   SYSLOG(LOG_INFO, "Plugin_Conf_Apply: Initial: attr: %s, value: %s", property, value);
 
 

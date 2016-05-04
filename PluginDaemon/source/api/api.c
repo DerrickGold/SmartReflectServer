@@ -34,7 +34,7 @@ static int _shutdown = 0;
 static SocketResponse_t inputResponse;
 
 
-API_Command_t allActions[ACTION_COUNT] = {
+APICommand_t allActions[ACTION_COUNT] = {
         {LIST_CMDS,    "commands",   NONE},
         /*
          * disable <pluginName>
@@ -168,10 +168,10 @@ API_Command_t allActions[ACTION_COUNT] = {
 
 };
 
-//Returns an API_ACTION value for a given search string
-static API_ACTION findAPICall(char *search) {
+//Returns an APIAction_e value for a given search string
+static APIAction_e findAPICall(char *search) {
 
-  API_ACTION action = NO_ACTION;
+  APIAction_e action = NO_ACTION;
   for (int i = 0; i < ACTION_COUNT; i++) {
     if (strncmp(search, allActions[i].name, strlen(allActions[i].name)) == 0) {
       action = i;
@@ -201,7 +201,7 @@ static int api_PluginDisable(void *plug, void *data) {
 }
 
 
-static int api_response(APIResponse_t *response, struct lws *wsi, Plugin_t *plugin, API_ACTION action, API_STATUS status) {
+static int api_response(APIResponse_t *response, struct lws *wsi, Plugin_t *plugin, APIAction_e action, APIStatus_e status) {
 
   char *plugName = NULL;
   if (plugin)
@@ -224,14 +224,14 @@ static int _pluginList(void *plugin, void *data) {
 /*
  * Sets an action to wait for a response from the daemon plugin communicator.
  */
-static API_STATUS api_waitForDaemonResponse(APIResponse_t *response, API_ACTION action, Plugin_t *plugin, struct lws *socket) {
+static APIStatus_e api_waitForDaemonResponse(APIResponse_t *response, APIAction_e action, Plugin_t *plugin, struct lws *socket) {
 
   if (!Display_IsDisplayConnected()) {
     APIResponse_concat(response, "No display connected.", -1);
     return FAIL;
   }
 
-  API_STATUS rtrn = PENDING;
+  APIStatus_e rtrn = PENDING;
   if (!APIPending_addAction(APIPENDING_DISPLAY, action, plugin, socket)) {
     Display_ClearDisplayResponse();
   } else {
@@ -246,14 +246,14 @@ static API_STATUS api_waitForDaemonResponse(APIResponse_t *response, API_ACTION 
  * Sets an action to wait for a response for a value obtained from
  * a plugin's frontend.
  */
-static API_STATUS api_waitForPluginResponse(APIResponse_t *response, API_ACTION action, Plugin_t *plugin, struct lws *socket) {
+static APIStatus_e api_waitForPluginResponse(APIResponse_t *response, APIAction_e action, Plugin_t *plugin, struct lws *socket) {
 
   if (!Plugin_isConnected(plugin)) {
     APIResponse_concat(response, "Plugin not connected to frontend", -1);
     return FAIL;
   }
 
-  API_STATUS rtrn = PENDING;
+  APIStatus_e rtrn = PENDING;
   if (!APIPending_addAction(APIPENDING_PLUGIN, action, plugin, socket)) {
     //Plugin_FreeFrontEndResponse(plugin);
     Plugin_ClientFreeResponse(plugin);
@@ -315,9 +315,9 @@ static int api_getPluginSetting(APIResponse_t *response, Plugin_t *plugin, char 
 }
 
 
-static void _applyAction(struct lws *wsi, API_ACTION action, Plugin_t *plugin, char *value) {
+static void _applyAction(struct lws *wsi, APIAction_e action, Plugin_t *plugin, char *value) {
 
-  API_STATUS status = SUCCESS;
+  APIStatus_e status = SUCCESS;
 
   APIResponse_t *immResponse = APIResponse_new();
   if (!immResponse)
@@ -523,7 +523,7 @@ static void parseInput(char *input, size_t inputLen, struct lws *wsi) {
   SYSLOG(LOG_INFO, "Entered Command: %s", cmd);
 
   //check to see if the entered command is a valid API call
-  API_ACTION action = findAPICall(cmd);
+  APIAction_e action = findAPICall(cmd);
 
   //if all input has been consumed, try the action
   if (parsed)
