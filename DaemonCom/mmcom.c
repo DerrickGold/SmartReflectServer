@@ -15,21 +15,26 @@
 #define DEFAULT_PORT 5000
 
 #define HELP_TEXT \
- "\n%s: [-p PORT_NUM] -c COMMAND [[-x PLUGIN] [-v VALUES]]" \
- "\tSends a command to the running magic mirror process and returns the result.\n" \
+ "\n%s: [-p PORT_NUM] -c COMMAND [[-x PLUGIN] [-v VALUES]]\n" \
+ "\tSends a command to the running SmartReflect PluginDaemon process and returns the result.\n\n" \
  "\tArguments:\n" \
  "\t\t-p: Specify a port number to use. Default is %d.\n" \
  "\t\t-c: The command action to perform:\n" \
- "\t\t\tDISABLE: Disable a currently running plugin.\n" \
- "\t\t\tENABLE: Start a currently disabled plugin.\n" \
- "\t\t\tRELOAD: Disables, then enables a plugin with one command.\n" \
- "\t\t\tLIST: Get a list of all the installed plugins.\n" \
- "\t\t\tPLUG_DIR: Get the folder path of an installed plugin.\n" \
- "\t\t\tMIR_SIZE: Returns the dimensions of the mirror (widthxheight).\n" \
- "\t\t\tINDEX_STATUS: indicate whether the mirror successfully connected to front end.\n" \
- "\t\t\tSTOP: Stop the magic-mirror plugin daemon.\n" \
- "\t\t\tPLUG_ATTRIB: Modify the setting of a plugin in it's plugin.conf file.\n" \
- "\t\t\tMODIFY_CSS: Modify the CSS of a specified plugin.\n" \
+ "\t\t\tdisable: Disable a currently running plugin.\n" \
+ "\t\t\tenable: Start a currently disabled plugin.\n" \
+ "\t\t\treload: Disables, then enables a plugin with one command.\n" \
+ "\t\t\tplugins: Get a list of all the installed plugins.\n" \
+ "\t\t\tgetdir: Get the folder path of an installed plugin.\n" \
+ "\t\t\trmplug: Returns the dimensions of the mirror (widthxheight).\n" \
+ "\t\t\tmirrorsize: indicate whether the mirror successfully connected to front end.\n" \
+ "\t\t\tstop: Stop the SmartReflect PluginDaemon.\n" \
+ "\t\t\tsetcss: Modify the CSS of a specified plugin's display client.\n" \
+ "\t\t\tgetcss: Query the plugin's css attribute from the display client.\n" \
+ "\t\t\tsavecss: Dumps any API sent css attributes to 'position.txt' in plugin folder.\n" \
+ "\t\t\tjscmd: Tell a plugin to execute a JavaScript function.\n" \
+ "\t\t\tdisplay: Returns if a browser display is connected to the PluginDaemon.\n" \
+ "\t\t\tgetopt: Returns a specified value from a plugin's config file.\n" \
+ "\t\t\tsetopt: Store a key-value option in a plugin's config file.\n" \
  "\t\t-x: Name of plugin to perform action on.\n" \
  "\t\t-v: Any associated values to perform action with.\n" \
  "\t\t\tCSS values: '<css_attribute>:<new value>'\n" \
