@@ -50,4 +50,4 @@ This project started as a capstone project for our (Derrick and David) Computer 
 Our prototype mirror utilizes a Raspberry Pi 2B with a 3.5" touch screen on it for interactive demos as seen below.
 ![Prototype Hardware](https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/Prototype.jpg)
 
-
+[Video with the software running](https://www.youtube.com/watch?v=vvyk46WU3A4)
