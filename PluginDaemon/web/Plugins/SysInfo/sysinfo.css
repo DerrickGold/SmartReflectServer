@@ -1,0 +1,22 @@
+#SysInfo {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 400px;
+    height: 400px;
+}
+
+#infoTitle {
+    font-size: 16pt;
+}
+
+#SysInfo .infoParam, #SysInfo .infoValue {
+    font-size: 12pt;
+    display: inline-block;
+}
+
+
+
+#SysInfo .infoParam {
+    margin-left: 20px;
+}
