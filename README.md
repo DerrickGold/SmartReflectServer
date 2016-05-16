@@ -32,6 +32,17 @@ Smart Reflect Server solves these browser limitations by creating and managing a
 
 Fortune piped into Cowsay bash script on display. 
 
+![On actual Mirror] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/Running.jpg)
+The actual mirror running various plugins.
+
+![Shopping List] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/ShoppingList.jpg)
+
+A shopping list created using the attached touchscreen.
+
+![Cowsay enabled] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/Cowsay.jpg)
+
+Cowsay plugin enabled on the actual mirror.
+
 ![Web GUI] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/WebManager.png)
 
 The web GUI for enabling, disabline, and moving plugins, or accessing plugin specific settings.
