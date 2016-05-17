@@ -19,6 +19,9 @@
 #define PLUGIN_SET_DISABLED(plugin) (plugin->flags &= ~PLUGIN_FLAG_RENDER)
 
 
+#define PLUGIN_CONF_OPT_TRUE "true"
+#define PLUGIN_CONF_OPT_FALSE "false"
+
 #define PLUGIN_CONF_FILENAME "plugin.conf"
 #define PLUGIN_CONF_OUTFILE "plugin.new.conf"
 #define PLUGIN_CONF_FILE "/" PLUGIN_CONF_FILENAME
@@ -38,6 +41,8 @@
 #define PLUGIN_CONF_START_ON_LOAD "start-on-load"
 #define PLUGIN_CONF_DESCRIPTION "description"
 #define PLUGIN_CONF_WEBGUI "webgui-html"
+
+
 
 #define MAX_COMMANDS 8
 

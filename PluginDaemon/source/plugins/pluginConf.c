@@ -18,7 +18,6 @@
 //Used for tagging original read settings in hash table keys
 #define PLUGIN_CONF_ORIGTAG "[r]"
 #define PLUGIN_CONF_TAG_DELIM ':'
-#define PLUGIN_CONF_OPT_TRUE "true"
 
 #define PLUGIN_CONF_MAX_PATHLIST 128
 static char *pathList[128];

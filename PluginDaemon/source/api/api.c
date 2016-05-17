@@ -22,6 +22,8 @@
 #define API_PROTO "STDIN"
 #define API_PLUGLIST_DELIM "\n"
 
+
+
 const char *API_STATUS_STRING[] = {
         "success",
         "fail",
@@ -187,15 +189,25 @@ static int api_PluginEnable(Plugin_t *plugin) {
 
   Plugin_Enable(plugin);
   Display_LoadPlugin(plugin);
+  //set plugin configuration to load on next boot
+  PluginConf_setValue(plugin, PLUGIN_CONF_START_ON_LOAD, PLUGIN_CONF_OPT_TRUE);
   SYSLOG(LOG_INFO, "API: Enabled plugin");
   return 0;
 }
 
-static int api_PluginDisable(void *plug, void *data) {
+static int api_PluginDisable(void *plug, void *shutdown) {
 
   Plugin_t *plugin = (Plugin_t *) plug;
+
   Display_UnloadPlugin(plugin);
   Plugin_Disable(plugin);
+
+  //set plugin to not load next time server is started
+  //if the mirror is shutting down, then the plugin isn't being disabled by the user
+  //and is likely intended to startup again on next boot.
+  if (!shutdown)
+    PluginConf_setValue(plugin, PLUGIN_CONF_START_ON_LOAD, PLUGIN_CONF_OPT_FALSE);
+
   SYSLOG(LOG_INFO, "API: Disabled plugin");
   return 0;
 }
@@ -618,7 +630,10 @@ static int API_Callback(struct lws *wsi, websocket_callback_type reason, void *u
 
 void API_ShutdownPlugins() {
 
-  PluginList_ForEach(api_PluginDisable, NULL);
+  //pass non-null value into api_PluginDisable so each plugin isn't disabled
+  //on next boot
+  char dontSave = 1;
+  PluginList_ForEach(api_PluginDisable, (void*)&dontSave);
   PluginSocket_Update();
   SocketResponse_free(&inputResponse);
 }
