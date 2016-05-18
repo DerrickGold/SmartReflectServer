@@ -9,8 +9,10 @@ find_package(LibWebSockets REQUIRED)
 
 
 # Build DaemonCom first
+
 aux_source_directory(DaemonCom DAEMONCOM_SRC)
 add_executable(mmcom ${DAEMONCOM_SRC})
+target_compile_options(mmcom PRIVATE "-O1")
 
 if (LIBWEBSOCKETS_FOUND) 
 	include_directories(${LIBWEBSOCKETS_INCLUDE_DIR})
@@ -31,6 +33,8 @@ aux_source_directory(PluginDaemon/source/api SR_API_SOURCES)
 
 include_directories(PluginDaemon/includes PluginDaemon/includes/api /usr/local/lib)
 add_executable(smartreflect ${SR_SOURCES} ${SR_PLUGIN_SOURCES} ${SR_API_SOURCES})
+
+target_compile_options(smartreflect PRIVATE "-O3")
 
 find_package(LibUUID REQUIRED)
 if (LIBUUID_FOUND)
