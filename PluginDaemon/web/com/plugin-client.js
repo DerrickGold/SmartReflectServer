@@ -1,4 +1,4 @@
-var PluginClient = function(inputSrc, outDiv, comDir, ipAddr) {
+var PluginClient = function(inputSrc, outDiv, ipAddr) {
 	var instance = this;
 
 	this.socketObj = null;

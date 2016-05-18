@@ -1,8 +1,7 @@
-var Display = function(socket, port, comDir) {
+var Display = function(socket, port) {
 	var instance = this;
 
 	this.doLogging = false;
-	this.comDir = comDir;
 	this.socket = null;
 	this.pluginList = {};
 	this.ipAddr = window.location.hostname;
@@ -34,7 +33,7 @@ var Display = function(socket, port, comDir) {
 				console.log("Initializing: " + plugName);
 				console.log(data);
 			}
-			instance.pluginList[plugName] = new PluginClient(data.pName, data.pDiv, instance.comDir, instance.ipAddr);
+			instance.pluginList[plugName] = new PluginClient(data.pName, data.pDiv, instance.ipAddr);
 
 		},
 		unload: function(data) {

@@ -42,7 +42,7 @@
   "var %sCom = new PluginClient(\"%s\", \"%s\");"
 
 #define INIT_FRONTEND_PROTO \
-  "var displayStuff = new Display(\"%s\", \"%s\", \"%s\");"
+  "var displayStuff = new Display(\"%s\", \"%s\");"
 
 
 #define PLUGIN_CLIENT_JS "plugin-client.js"
@@ -353,7 +353,7 @@ int Display_Generate(int portNum, const char *comFolder, const char *cssFolder, 
   snprintf(portStr, sizeof(portStr) - 1, "%d", portNum);
 
   size_t dispBufLen = strlen(INIT_FRONTEND_PROTO) + strlen(PLUGIN_SERVER_PROTOCOL) +
-                      strlen(comFolder) + strlen(portStr) + 1;
+                      strlen(portStr) + 1;
 
   char *dispBuf = calloc(dispBufLen, sizeof(char));
   if (!dispBuf) {
@@ -361,7 +361,7 @@ int Display_Generate(int portNum, const char *comFolder, const char *cssFolder, 
     close(fd);
     return -1;
   }
-  snprintf(dispBuf, dispBufLen - 1, INIT_FRONTEND_PROTO, PLUGIN_SERVER_PROTOCOL, portStr, comFolder);
+  snprintf(dispBuf, dispBufLen - 1, INIT_FRONTEND_PROTO, PLUGIN_SERVER_PROTOCOL, portStr);
   doWrite(fd, dispBuf, strlen(dispBuf));
   free(dispBuf);
 
