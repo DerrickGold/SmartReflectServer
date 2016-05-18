@@ -200,15 +200,18 @@ static int api_PluginDisable(void *plug, void *shutdown) {
   Plugin_t *plugin = (Plugin_t *) plug;
 
   Display_UnloadPlugin(plugin);
-  Plugin_Disable(plugin);
 
   //set plugin to not load next time server is started
   //if the mirror is shutting down, then the plugin isn't being disabled by the user
   //and is likely intended to startup again on next boot.
   if (!shutdown)
     PluginConf_setValue(plugin, PLUGIN_CONF_START_ON_LOAD, PLUGIN_CONF_OPT_FALSE);
+  else
+    PluginSocket_Update();
 
   SYSLOG(LOG_INFO, "API: Disabled plugin");
+  Plugin_Disable(plugin);
+
   return 0;
 }
 
