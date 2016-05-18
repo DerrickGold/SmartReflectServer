@@ -2,7 +2,7 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 	var instance = this;
 
 	this.socketObj = null;
-	this.doLogging = true;
+	this.doLogging = false;
 
 	this.splitToken = '\n';
 	this.isReading = false;
@@ -82,26 +82,37 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 	    document.getElementsByTagName("head")[0].appendChild(fileref);
 	}
 
-
+	/*
+	 * These actions define functions that are available to be called from
+	 * the server. This allows external programs or scripts to modify the
+	 * plugin client DOM, and the server to load and unload plugin data.
+	 * Plugins powered by JavaScript do not need these particular functions.
+	 */
 	this.availableActions = {
+		//completely disable this plugin
 		close: function(data) {
 			instance.close();
 		},
-	    write: function(data) {
 
+		//write data to plugin's div element text
+	    write: function(data) {
 	        var div = instance.getDiv();
 	      	data = data.replace(/\n/g, "<br>");
 	      	div.innerHTML += data;
 	    },
+
 	    innerdiv: function(data) {
 	    	var div = instance.getDiv();
 	    	div.innerHTML = data;
 	    },
-	    clear: function(data) {
 
+	    //clear contents of a plugin's div element
+	    clear: function(data) {
 	        var div = instance.getDiv();
 	        div.innerHTML = "";
 	    },
+
+	    //helper function for unloading this plugin
 	    unload: function(data) {
 	    	//unload the contents of the main javascript class
 	    	if (instance.jsClass != null && instance.jsClass.destroy)
@@ -140,10 +151,13 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 				div.parentNode.removeChild(div);
 	    },
 
+	    //load this plugin
 	    load: function(data) {
 	    	if (instance.doLogging)
 	    		console.log("Loading: ");
+
 	    	data = JSON.parse(data);
+
 	    	if (instance.doLogging)
 	    		console.log(data);
 
@@ -161,8 +175,6 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 	    		});
 	    	} else
 	    		instance.cssPath = [];
-
-
 
 	    	//load new javascript file if given
 	    	if (data["js"] != null && data["js"].length > 0){
@@ -211,16 +223,14 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 
 	    		//when all js and css files are loaded, send message back
 	    		//to server indicating a plugin client has completely loaded
-	    		/*instance.worker.postMessage({
-	    			type: "send",
-	    			data: "PluginClient Loaded"
-	    		});*/
 	    		instance.socketObj.send("PluginClient Loaded");
 	    		window.clearInterval(instance.doneLoadTimer);
 	    		instance.doneLoadTimer = null;
 	    	}, 10);
 
 	    },
+
+	    //set or modify a css style attribute for the plugin div.
 	    setcss: function(data) {
 	       	var style = instance.getDiv().style;
 
@@ -237,12 +247,10 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 	       		}
 	       	});
 
-	       	/*instance.worker.postMessage({
-	       		type: "send",
-	       		data: "CSS Applied"
-	       	});*/
 	       	instance.socketObj.send("CSS Applied");
 	    },
+
+	    //return a css style attribute from this plugin div back to caller
 	    getcss: function(data) {
 	    	var style = window.getComputedStyle(instance.getDiv(), '');
 	    	var properties = data.split(',').filter(function(s) { return s.length > 0; });
@@ -259,15 +267,14 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 	    		results = results.concat( p + '=' + prop + "\n");
 	    	});
 
-		    /*instance.worker.postMessage({
-				type: "send",
-				data: results
-			});*/
 			instance.socketObj.send(results);
-
 	    },
+
+	    //execute a function from the instantiated JavaScript class created
+	    //for this plugin
 	    jsPluginCmd: function(data) {
 	    	var preJson = data;
+
 	    	if (!instance.jsClass) {
 	    		instance.socketObj.send("No Javascript Class Instance Defined");
 	    		return;
@@ -296,9 +303,8 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 
 	};
 
-
+	//parse in-comming API call from server and call the appropriate function
 	this.parseAction = function(input) {
-
 	    var action = this.availableActions;
 
 	    if (input.constructor === Array) {
@@ -311,8 +317,10 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 	    }
 	};
 
+
 	this.socketReceive = function(data) {
-		console.log(data.data);
+		if (this.doLogging)
+			console.log(data.data);
 		instance.parseAction(JSON.parse(data.data));
 	}
 
@@ -331,6 +339,7 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 			if (instance.doLogging)
 				console.log("starting input");
 
+			//send message back to server indicating connection opened
 			instance.socketObj.send(name);
 		};
 	}
@@ -357,7 +366,6 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 		instance.socketObj.close();
 		instance.availableActions["unload"](null);
 	}
-
 
   	this.init();
 };
