@@ -33,6 +33,7 @@ Smart Reflect Server solves these browser limitations by creating and managing a
 Fortune piped into Cowsay bash script on display. 
 
 ![On actual Mirror] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/Running.jpg)
+
 The actual mirror running various plugins.
 
 ![Shopping List] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/ShoppingList.jpg)
