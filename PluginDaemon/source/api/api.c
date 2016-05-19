@@ -21,6 +21,7 @@
 
 #define API_PROTO "STDIN"
 #define API_PLUGLIST_DELIM "\n"
+#define CLIENT_API_HEADER "[API]"
 
 
 
@@ -96,23 +97,6 @@ APICommand_t allActions[ACTION_COUNT] = {
         {STOP,         "stop",       NONE},
 
         /*
-         * setopt <plugin> <option=value>
-         * Write a new, or replace an option to a plugin's
-         * 'plugin.conf' file. This change will require a
-         * plugin to be reloaded to take effect.
-         */
-        {SET_OPT,      "setopt",     NEED_PLUGIN | NEED_VALUES},
-
-        /*
-         * getopt <plugin> <option>
-         * Get the value of an option found in a plugin's
-         * 'plugin.conf' file. Some options may return multiple
-         * values (js-path and css-path), which will be separated
-         * with a newline character.
-         */
-        {GET_OPT,      "getopt",     NEED_PLUGIN | NEED_VALUES},
-
-        /*
          * setcss <plugin> <cssAttr=value;attr=value....>
          * Set a CSS value for a plugin's frontend
          * display.
@@ -159,14 +143,14 @@ APICommand_t allActions[ACTION_COUNT] = {
          * Returns a value in a plugins config file based
          * on the queried setting.
          */
-        {GET_CONFIG,   "getcfg",     NEED_PLUGIN | NEED_VALUES},
+        {GET_CONFIG,   "getopt",     NEED_PLUGIN | NEED_VALUES},
 
         /*
          * setcfg <plugin> <config_file_setting>=<new_value>
          * Write a new entry or overwrite an existing entry in a plugin's
          * config file.
          */
-        {SET_CONFIG,   "setcfg",     NEED_PLUGIN | NEED_VALUES}
+        {SET_CONFIG,   "setopt",     NEED_PLUGIN | NEED_VALUES}
 
 };
 
@@ -175,7 +159,7 @@ static APIAction_e findAPICall(char *search) {
 
   APIAction_e action = NO_ACTION;
   for (int i = 0; i < ACTION_COUNT; i++) {
-    if (strncmp(search, allActions[i].name, strlen(allActions[i].name)) == 0) {
+    if (strncmp(allActions[i].name, search, strlen(allActions[i].name)) == 0) {
       action = i;
       break;
     }
@@ -361,7 +345,10 @@ static void _applyAction(struct lws *wsi, APIAction_e action, Plugin_t *plugin, 
 
   switch (action) {
     case NO_ACTION:
-      PluginSocket_writeToSocket(wsi, "Specified action does not exist.", -1);
+      //PluginSocket_writeToSocket(wsi, "Specified action does not exist", -1);
+      //return;
+      status = FAIL;
+      APIResponse_concat(immResponse, "Specified action does not exist", -1);
       //syslog(LOG_INFO, "Specified action does not exist.");
       break;
     case LIST_CMDS: {
@@ -428,19 +415,6 @@ static void _applyAction(struct lws *wsi, APIAction_e action, Plugin_t *plugin, 
       _shutdown = 1;
       APIResponse_concat(immResponse, "Shutting down daemon...", -1);
       SYSLOG(LOG_INFO, "Stopped mirror");
-      break;
-    case SET_OPT:
-      //modify either the CSS path, the script path, execution timer, and renegerate index
-      SYSLOG(LOG_INFO, "Set plugin attribute");
-      if (api_writePluginSetting(immResponse, plugin, value))
-        status = FAIL;
-      break;
-    case GET_OPT:
-      //modify either the CSS path, the script path, execution timer, and renegerate index
-      SYSLOG(LOG_INFO, "Get plugin attribute");
-      if (api_getPluginSetting(immResponse, plugin, value))
-        status = FAIL;
-
       break;
     case SET_CSS:
       SYSLOG(LOG_INFO, "Set plugin CSS");
@@ -543,9 +517,10 @@ static void parseInput(char *input, size_t inputLen, struct lws *wsi) {
 
   //check to see if the entered command is a valid API call
   APIAction_e action = findAPICall(cmd);
+  SYSLOG(LOG_INFO, "Done looking for action: %d", action);
 
   //if all input has been consumed, try the action
-  if (parsed)
+  if (parsed || action == NO_ACTION)
     goto _doAction;
 
   SYSLOG(LOG_INFO, "Action Num: %d", action);
@@ -665,4 +640,21 @@ void API_Update(void) {
 int API_Shutdown(void) {
 
   return _shutdown;
+}
+
+int API_Parse(struct lws *socket, char *in, size_t len) {
+
+  size_t headerLen = strlen(CLIENT_API_HEADER);
+  //if plugin client wants to make an api call, it needs the API header
+  if (strncmp(in, CLIENT_API_HEADER, headerLen))
+    return 0;
+
+  char *temp = malloc(len - headerLen);
+  if (!temp) return -1;
+
+  memcpy(temp, in + headerLen, len);
+  parseInput(temp, len, socket);
+
+  free(temp);
+  return 1;
 }

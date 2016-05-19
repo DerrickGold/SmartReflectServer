@@ -83,6 +83,53 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 	}
 
 	/*
+	 * These actions are available for an instantiated JavaScript class object
+	 * to call for retreiving data from the server.
+	 */
+	this.supplementalActions = {
+		apiResponse: function(data) {
+	        var response = data.split(':');
+	  		var res = response.slice(0, 3);
+	  		res.push(response.slice(3).join(':'))
+
+
+	        var completedAction = res[0],
+	            status = res[1],
+	            plugin = res[2],
+	            payload = res[3];
+
+	        console.log(res);
+
+	        //call user defined callback
+	        if (status !== "fail")
+				instance.supplementalActions.callbacks[completedAction](payload);
+		},
+		callbacks: {
+			getopt: function(response) {
+				var parts = response.split(':', 2);
+
+				if (instance.supplementalActions.pluginConf.onGet)
+					instance.supplementalActions.pluginConf.onGet({ setting: parts[0], value: parts[1]});
+			},
+			setcfg: function(response) {
+
+			}
+		},
+
+		pluginConf: {
+
+			onGet: null,
+
+			get: function(data) {
+				instance.socketObj.send("[API]getopt\n" + instance.outDivName + "\n" + data);
+			},
+			set: function(data) {
+
+			}
+		}
+	};
+
+	/*
 	 * These actions define functions that are available to be called from
 	 * the server. This allows external programs or scripts to modify the
 	 * plugin client DOM, and the server to load and unload plugin data.
@@ -198,7 +245,7 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 
 				 //if a main class has been specified, we need to instantiate it
 				if (data["main"] != null && data["main"].length > 0) {
-					var str = "new " + data["main"] + "();";
+					var str = "new " + data["main"] + "(instance.supplementalActions.pluginConf);";
 
 					if (instance.doLogging)
 						console.log("Invoking: " + str);
@@ -312,8 +359,11 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 	        	action[obj.command](obj.data);
 	      	});
 	    }
-	    else {
+	    else if (typeof input === 'object') {
 	      	action[input.command](input.data);
+	    }
+	    else {
+	    	instance.supplementalActions.apiResponse(input);
 	    }
 	};
 
@@ -321,7 +371,12 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 	this.socketReceive = function(data) {
 		if (this.doLogging)
 			console.log(data.data);
-		instance.parseAction(JSON.parse(data.data));
+		try {
+			instance.parseAction(JSON.parse(data.data));
+		} catch (err) {
+			instance.parseAction(data.data);
+		}
+
 	}
 
 

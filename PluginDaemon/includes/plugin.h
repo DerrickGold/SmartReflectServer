@@ -43,9 +43,6 @@
 #define PLUGIN_CONF_WEBGUI "webgui-html"
 
 
-
-#define MAX_COMMANDS 8
-
 #define PLUGIN_UUID_LEN 38
 #define PLUGIN_UUID_SHORT_LEN 32
 
@@ -112,8 +109,6 @@ typedef enum {
     PLUGIN_FLAG_INBG = (1 << 8),
 } PluginFlags_e;
 
-
-extern const char Plugin_Commands[][MAX_COMMANDS];
 
 extern Plugin_t *Plugin_Create(void);
 

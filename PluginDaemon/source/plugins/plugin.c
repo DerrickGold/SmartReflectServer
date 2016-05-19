@@ -19,6 +19,7 @@
 #include "scripts.h"
 #include "pluginComLib.h"
 #include "misc.h"
+#include "api.h"
 
 #define CSS_HASH_INIT_SIZE 73
 
@@ -27,6 +28,7 @@
 #define PLUGIN_SAVED_CSS_LOCATION "%s/"PLUGIN_SAVED_CSS_FILE
 
 #define PLUGIN_CLIENT_LOADED_MSG "PluginClient Loaded"
+#define PLUGIN_CLIENT_GETCFG "getcfg"
 
 
 #define PLUGIN_COMMAND_TAG_WRITE 0
@@ -37,14 +39,6 @@
 
 #define PLUGIN_LOAD_STR "{\"css\":\"%s\",\"js\":\"%s\"}"
 
-
-const char Plugin_Commands[][MAX_COMMANDS] = {
-        "write",
-        "clear",
-        "alert",
-        "reload",
-        "setcss"
-};
 
 
 static size_t sstrlen(char *string) {
@@ -144,20 +138,22 @@ static int Plugin_SocketCallback(struct lws *wsi, websocket_callback_type reason
         char *clientData = SocketResponse_get(clientResponse);
         size_t clientSize = SocketResponse_size(clientResponse);
 
+        //process any api calls made by plugin client controller
+        if(API_Parse(wsi, clientData, clientSize))
+          break;
+
         //check for plugin client confirmed load
-        if (!strcmp((char *) clientData, PLUGIN_CLIENT_LOADED_MSG)) {
+        else if (!strcmp((char *) clientData, PLUGIN_CLIENT_LOADED_MSG)) {
           //set plugin as loaded
           plugin->flags |= PLUGIN_FLAG_LOADED;
           SYSLOG(LOG_INFO, "Plugin_SocketCallback: confirmed plugin load: %s", proto->name);
           PluginCSS_sendAll(plugin);
           return 0;
-        } else {
-
-          //PluginCSS_asyncSendSaved(plugin);
+        }
+        else {
           //if there is an external client connected specifically for this plugin, send them a response
           if (plugin->externSocketInstance)
             PluginSocket_writeToSocket(plugin->externSocketInstance, clientData, clientSize);
-
         }
       }
     }

@@ -72,8 +72,11 @@ int APIResponse_concat(APIResponse_t *response, char *str, int len) {
  */
 int APIResponse_send(APIResponse_t *response, struct lws *wsi, char *plugin, APIAction_e action, APIStatus_e status) {
 
-  char *actionStr = (char *) allActions[action].name;
-  char *statusStr = (char *) API_STATUS_STRING[status];
+  char *actionStr = EMPTY_STR, *statusStr = (char *) API_STATUS_STRING[status];
+
+  if (action != NO_ACTION)
+    actionStr = (char *) allActions[action].name;
+
   char *plugName = EMPTY_STR;
 
   if (plugin)

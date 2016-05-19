@@ -1,6 +1,8 @@
 #ifndef MAGIC_MIRROR_INPUTREADER_H
 #define MAGIC_MIRROR_INPUTREADER_H
 
+#include "libwebsockets.h"
+
 typedef enum {
     SUCCESS = 0,
     FAIL,
@@ -22,8 +24,6 @@ typedef enum {
     RM_PLUG,
     MIR_SIZE,
     STOP,
-    SET_OPT,
-    GET_OPT,
     SET_CSS,
     GET_CSS,
     DUMP_CSS,
@@ -57,6 +57,8 @@ extern int API_Shutdown(void);
 extern void API_Update(void);
 
 extern void API_ShutdownPlugins();
+
+extern int API_Parse(struct lws *socket, char *in, size_t len);
 
 #endif //MAGIC_MIRROR_INPUTREADER_H
 
