@@ -136,14 +136,16 @@ var PluginClient = function(clientSettings) {
 			 * Get a setting from the "plugin.conf" file
 			 */
 			get: function(data) {
-				instance.socketObj.send("[API]getopt\n" + instance.outDivName + "\n" + data);
+				instance.socketObj.send("[API]getopt\n" + instance.clientInfo.containerID +
+										"\n" + data);
 			},
 
 			/*
 			 * Add or overwrite a setting in the "plugin.conf" file
 			 */
 			set: function(data) {
-				instance.socketObj.send("[API]setopt\n" + instance.outDivName + "\n" + data);
+				instance.socketObj.send("[API]setopt\n" + instance.clientInfo.containerID  +
+										"\n" + data);
 			}
 		}
 	};
