@@ -5,6 +5,7 @@ var Display = function(socket, port) {
 	this.socket = null;
 	this.pluginList = {};
 	this.ipAddr = window.location.hostname;
+	this.port = port;
 
 
 	this.onmessage = function(data) {
@@ -20,7 +21,6 @@ var Display = function(socket, port) {
 	}
 
 	this.transform = function(name) {
-
 		return name + "Socket";
 	}
 
@@ -33,7 +33,12 @@ var Display = function(socket, port) {
 				console.log("Initializing: " + plugName);
 				console.log(data);
 			}
-			instance.pluginList[plugName] = new PluginClient(data.pName, data.pDiv, instance.ipAddr);
+			instance.pluginList[plugName] = new PluginClient({
+				protocol: data.pName,
+				containerID: data.pDiv,
+				ip: instance.ipAddr,
+				port: instance.port
+			});
 
 		},
 		unload: function(data) {
@@ -62,8 +67,8 @@ var Display = function(socket, port) {
 		instance.socket = new WebSocket("ws://" + instance.ipAddr + ":" + port, socket);
 		if (instance.doLogging)
 			console.log("CONNECTING TO: " + instance.ipAddr);
-		instance.socket.onmessage = instance.onmessage;
-		instance.socket.onopen = function(e) {
+			instance.socket.onmessage = instance.onmessage;
+			instance.socket.onopen = function(e) {
 			instance.socket.send("ready");
 		};
 	}

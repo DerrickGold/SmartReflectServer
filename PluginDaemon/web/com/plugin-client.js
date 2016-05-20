@@ -1,20 +1,18 @@
-var PluginClient = function(inputSrc, outDiv, ipAddr) {
+var PluginClient = function(clientSettings) {
+
 	var instance = this;
+
+	this.clientInfo = clientSettings;
 
 	this.socketObj = null;
 	this.doLogging = false;
 
 	this.splitToken = '\n';
 	this.isReading = false;
-	this.outDivName = outDiv;
 	this.outDiv = null;
-	this.inputSrc = inputSrc;
-	this.worker = null;
-	this.sockPort = 5000;
 	this.cssPath = [];
 	this.jsPath = [];
 	this.jsClass = null;
-	this.ipAddr = ipAddr;
 
 	this.scriptLoadCount = 0;
 	this.cssLoadCount = 0;
@@ -26,8 +24,8 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 		return this.outDiv;
 	}
 
+	//break file caching done by browsers to allow for proper reloading of resources
 	this.breakCache = function(filename) {
-
 		return filename + "?" + Math.floor((Math.random() * 1000000) + 1);
 	}
 
@@ -104,6 +102,7 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 	        if (status !== "fail")
 				instance.supplementalActions.callbacks[completedAction](payload);
 		},
+
 		callbacks: {
 			getopt: function(response) {
 				var parts = response.split(':', 2);
@@ -111,20 +110,40 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 				if (instance.supplementalActions.pluginConf.onGet)
 					instance.supplementalActions.pluginConf.onGet({ setting: parts[0], value: parts[1]});
 			},
-			setcfg: function(response) {
 
+			setcfg: function(response) {
+				if (instance.supplementalActions.pluginConf.onSet)
+					instance.supplementalActions.pluginConf.onSet(response);
 			}
 		},
 
+		/*
+		 * Plugin's JavaScript object instance only gets access to this portion
+		 * of the API.
+		 */
 		pluginConf: {
-
+			//functions to call when the API response is returned
 			onGet: null,
+			onSet: null,
 
+			/*
+			 * API calls require the [API] header prepended. The API runs on its own
+			 * socket protocol that plugins do not connect with. This header informs the
+			 * plugin protocol to perform an API call with the data sent to it.
+			 */
+
+			/*
+			 * Get a setting from the "plugin.conf" file
+			 */
 			get: function(data) {
 				instance.socketObj.send("[API]getopt\n" + instance.outDivName + "\n" + data);
 			},
-			set: function(data) {
 
+			/*
+			 * Add or overwrite a setting in the "plugin.conf" file
+			 */
+			set: function(data) {
+				instance.socketObj.send("[API]setopt\n" + instance.outDivName + "\n" + data);
 			}
 		}
 	};
@@ -402,18 +421,18 @@ var PluginClient = function(inputSrc, outDiv, ipAddr) {
 	this.init = function() {
 
 		//check if div already exists
-		instance.outDiv = document.getElementById(instance.outDivName);
+		instance.outDiv = document.getElementById(instance.clientInfo.containerID);
 		if (!instance.outDiv) {
 			//create output div if it doesn't exist
 			instance.outDiv = document.createElement('div');
-			instance.outDiv.setAttribute('id', instance.outDivName);
+			instance.outDiv.setAttribute('id', instance.clientInfo.containerID);
 			document.body.appendChild(instance.outDiv);
 		}
 
 		instance.serverConnect({
-			sockName: instance.inputSrc,
-			portNum: instance.sockPort,
-			ip: instance.ipAddr
+			sockName: instance.clientInfo.protocol,
+			portNum: instance.clientInfo.port,
+			ip: instance.clientInfo.ip
 		});
 	}
 
