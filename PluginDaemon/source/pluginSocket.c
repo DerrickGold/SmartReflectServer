@@ -16,9 +16,8 @@
 #define GUI_PATH "/gui"
 
 
-#define HTTP_SERVER_PROTOCOL "HTTP"
 #define SOCKET_TIMEOUT 50
-#define BASE_PROTO_POOL 3
+#define BASE_PROTO_POOL 2
 #define NUM_BUFFERED_WRITES 256
 
 /*
@@ -108,11 +107,29 @@ struct lws_protocols listTerminator = {
 static char *_htmlPath = NULL;
 static char *_basePath = NULL;
 
-static int _httpServerCallback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len);
-
-struct lws_protocols httpServer = {
-        .name=HTTP_SERVER_PROTOCOL, .callback=_httpServerCallback
+static const struct lws_protocol_vhost_options extra_mimetypes = {
+        NULL,
+        NULL,
+        ".woff2",
+        "application/font-woff"
 };
+
+static const struct lws_http_mount indexMount = {
+        NULL,
+        INDEX_PATH,
+        "./",
+        "index.html",
+        NULL,
+        &extra_mimetypes,
+        0,
+        0,
+        0,
+        0,
+        0,
+        LWSMPRO_FILE,
+        1
+};
+
 
 
 static char *allocStr(char *input) {
@@ -127,88 +144,6 @@ static char *allocStr(char *input) {
   return newStr;
 }
 
-/*
- * Creates a basic http server to serve resource files.
- * These files includes scripts, html, css, and image files
- * required by plugins. This allows the display client (browser)
- * to load via a url (127.0.0.1:<port number>) rather than
- * pointing it to the file location of the generated "index.html".
- */
-static int _httpServerCallback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len) {
-
-  switch (reason) {
-    default:
-      break;
-    case LWS_CALLBACK_HTTP_FILE_COMPLETION:
-      SYSLOG(LOG_INFO, "HTTP File completely sent\n");
-      return lws_http_transaction_completed(wsi);
-
-
-    case LWS_CALLBACK_HTTP:
-      SYSLOG(LOG_INFO, "CALLBACK: HTTP");
-      if (!_htmlPath) {
-        SYSLOG(LOG_ERR, "_httpServerCallback: No html file specified to serve.");
-        return -1;
-      }
-
-      return PluginSocket_serveHttp(wsi, (char *) in, len);
-  }
-
-  return 0;
-}
-
-
-/*
- * Sends a requested file if available with the proper mime
- * type.
- */
-int PluginSocket_serveHttp(struct lws *wsi, char *file, size_t len) {
-
-  char *requested_uri = (char *) file;
-  char resource_path[1024];
-
-  snprintf(resource_path, 1024, ".%s", requested_uri);
-  SYSLOG(LOG_INFO, "HTTP Requested: %s", resource_path);
-
-  //redirect "/" to "/index.html"
-  if (!strncmp(requested_uri, INDEX_PATH, len)) {
-    SYSLOG(LOG_INFO, "Sending html file\n");
-    SYSLOG(LOG_INFO, "HTML PATH: %s", _htmlPath);
-    return lws_serve_http_file(wsi, _htmlPath, "text/html", NULL, 0);
-  }
-  //add a redirect for /gui to /webui/gui.html
-  //else if (!strncmp(requested_uri, GUI_PATH, len)) {
-  //snprintf(resource_path, 1024, "./webgui/gui.html");
-  //  return lws_serve_http_file (wsi, resource_path, "text/html", NULL, 0);
-  // }
-
-  char *extension = strrchr(resource_path, '.');
-  char *mime;
-
-  SYSLOG(LOG_INFO, "HTTP Requested: %s", resource_path);
-
-  // choose mime type based on the file extension
-  if (extension == NULL) {
-    mime = "text/plain";
-  } else if (strcmp(extension, ".png") == 0) {
-    mime = "image/png";
-    //return 1;
-  } else if (strcmp(extension, ".jpg") == 0) {
-    mime = "image/jpg";
-  } else if (strcmp(extension, ".gif") == 0) {
-    mime = "image/gif";
-  } else if (strcmp(extension, ".html") == 0) {
-    mime = "text/html";
-  } else if (strcmp(extension, ".css") == 0) {
-    mime = "text/css";
-  } else if (strcmp(extension, ".js") == 0) {
-    mime = "text/javascript";
-  } else {
-    mime = "text/plain";
-  }
-
-  return lws_serve_http_file(wsi, resource_path, mime, NULL, 0);
-}
 
 /*============================================================================================
  * Protocol List
@@ -274,11 +209,6 @@ struct lws_protocols *PluginSocket_getProtocol(char *name) {
 int PluginSocket_AddProtocol(struct lws_protocols *proto) {
 
   if (_lastProtocol >= _protocolCount) {
-    int start = 0;
-    if (!_protocolCount) {
-      _protocolCount = BASE_PROTO_POOL;
-      start = 1;
-    }
 
     struct lws_protocols *protos = realloc(_protocols, sizeof(struct lws_protocols) * (_protocolCount + 1));
     if (!protos) {
@@ -289,11 +219,6 @@ int PluginSocket_AddProtocol(struct lws_protocols *proto) {
     _protocols = protos;
     _protocolCount++;
     SYSLOG(LOG_INFO, "Addprotocol: resized pool %d", _protocolCount);
-
-    //add starting protocol
-    if (start) {
-      PluginSocket_AddProtocol(&httpServer);
-    }
   }
 
   //replace the null entry if we are adding onto the list after the context has been
@@ -425,6 +350,7 @@ static struct lws_context *_makeContext(int port) {
   info.uid = -1;
   info.options = opts;
   info.max_http_header_pool = 256;
+  info.mounts = &indexMount;
   /*info.timeout_secs = 10;
   info.ka_probes = 3;
   info.ka_time = 5;
