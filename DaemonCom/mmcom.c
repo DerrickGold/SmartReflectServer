@@ -41,10 +41,11 @@
  "\t\t\tPlugin Attribute: '<attribute>:<new value>'\n"
 
 
+static char *COMMAND_BUFFER = NULL;
+
 static char *prgmName = NULL;
 
 static int destroy_flag = 0;
-static int connection_flag = 0;
 
 char *server = "localhost";
 
@@ -151,7 +152,7 @@ static int websocket_write_back(struct lws *wsi_in, char *str, int str_size_in)
     else
         len = str_size_in;
 
-    out = (char *)malloc(sizeof(char)*(LWS_SEND_BUFFER_PRE_PADDING + len + LWS_SEND_BUFFER_POST_PADDING));
+    out = (char *)malloc(sizeof(char)*(LWS_SEND_BUFFER_PRE_PADDING + len ));
     //* setup the buffer*/
     memcpy (out + LWS_SEND_BUFFER_PRE_PADDING, str, len );
     //* write out*/
@@ -172,24 +173,34 @@ static int ws_service_callback(
     switch (reason) {
 
     case LWS_CALLBACK_CLIENT_ESTABLISHED:
-        connection_flag = 1;
+        lws_callback_on_writable(wsi);
         break;
+
+      case LWS_CALLBACK_CLIENT_WRITEABLE:
+
+        if (lws_partial_buffered(wsi) || COMMAND_BUFFER == NULL)
+          return 0;
+
+        websocket_write_back(wsi, COMMAND_BUFFER, strlen(COMMAND_BUFFER));
+        //lws_callback_on_writable(wsi);
+        free(COMMAND_BUFFER);
+        COMMAND_BUFFER = NULL;
+        break;
+
     case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
         destroy_flag = 1;
-        connection_flag = 0;
         break;
 
     case LWS_CALLBACK_CLOSED:
         destroy_flag = 1;
-        connection_flag = 0;
         break;
 
     case LWS_CALLBACK_CLIENT_RECEIVE:
         //print back the received info from the mirror
         printf("%s", (char *)in);
-        if (lws_remaining_packet_payload(wsi) == 0)
-            printf("\n");
-
+        if (lws_remaining_packet_payload(wsi) == 0) {
+          printf("\n");
+        }
         //then exit
         char *status = NULL;
 
@@ -197,7 +208,6 @@ static int ws_service_callback(
         //if there is no status replied, or the message is not
         //pending, we can exit the program
         destroy_flag =  (!status || strcmp(status, "pending"));
-
         break;
     default:
         break;
@@ -261,6 +271,8 @@ int main(int argc, char *argv[]) {
     struct lws_client_connect_info i;
 
     memset(&info, 0, sizeof info);
+    memset(&i, 0, sizeof i);
+
     info.port = CONTEXT_PORT_NO_LISTEN;
     info.protocols = &protocol;
     info.gid = -1;
@@ -295,39 +307,32 @@ int main(int argc, char *argv[]) {
     i.protocol = protoName;
 
     size_t len = strlens(cmd) + strlens(plugin) + strlens(values) + 4;
-    char *commandBuf = calloc(len + 1, sizeof(char));
-    if (!commandBuf) {
+    COMMAND_BUFFER = calloc(len + 1, sizeof(char));
+    if (!COMMAND_BUFFER) {
         fprintf(stderr, "Generated command string too long!\n");
         return EXIT_FAILURE;
     }
 
-    int sent = 0;
+    //build command
+    if (cmd != NULL) {
+      strcpy(COMMAND_BUFFER, cmd);
+      strcat(COMMAND_BUFFER, "\n");
+    }
+    if (plugin != NULL) {
+      strcat(COMMAND_BUFFER, plugin);
+      strcat(COMMAND_BUFFER, "\n");
+    }
+    if (values != NULL)
+      strcat(COMMAND_BUFFER, values);
+
+
 
     wsi = lws_client_connect_via_info(&i);
     while(!destroy_flag) {
         //wait for connection
         lws_service(context, 50);
-        if (!connection_flag || sent) continue;
-
-        //once connected, send the one command and exit
-        if (cmd != NULL) {
-        	strcpy(commandBuf, cmd);
-        	strcat(commandBuf, "\n");
-        }
-        if (plugin != NULL) {
-        	strcat(commandBuf, plugin);
-        	strcat(commandBuf, "\n");
-        }
-        if (values != NULL)
-        	strcat(commandBuf, values);
-
-
-        websocket_write_back(wsi, commandBuf, strlen(commandBuf));
-        //make sure message is only sent once
-        sent++;
     }
 
-    free(commandBuf);
     lws_context_destroy(context);
     return 0;
 }
