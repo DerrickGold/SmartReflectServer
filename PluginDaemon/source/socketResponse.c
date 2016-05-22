@@ -45,7 +45,7 @@ int SocketResponse_build(SocketResponse_t *sockr, struct lws *wsi, char *respons
   sockr->data[sockr->len - 1] = 0;
 
   //no more expected data from this response, set it as complete
-  if (lws_remaining_packet_payload(wsi) == 0)
+  if (lws_remaining_packet_payload(wsi) == 0 && lws_is_final_fragment(wsi))
     sockr->complete = 1;
 
   return 0;

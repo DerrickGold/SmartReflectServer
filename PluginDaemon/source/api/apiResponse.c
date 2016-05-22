@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <syslog.h>
-
+#include <libwebsockets.h>
 #include "apiResponse.h"
 #include "misc.h"
 
@@ -87,23 +87,22 @@ int APIResponse_send(APIResponse_t *response, struct lws *wsi, char *plugin, API
   if (response->payload)
     responseStrLen += strlen(response->payload);
 
-  char *responseStr = calloc(responseStrLen, sizeof(char));
+  char *responseStr = calloc(responseStrLen + LWS_SEND_BUFFER_PRE_PADDING, sizeof(char));
   if (!responseStr) {
     SYSLOG(LOG_ERR, "APIResponse_send: Error allocating API Response");
     return -1;
   }
 
+  char *resPtr = responseStr + LWS_SEND_BUFFER_PRE_PADDING;
+
   if (response->payload)
-    snprintf(responseStr, responseStrLen, API_RETURN_FMT, actionStr, statusStr, plugName, response->payload);
+    snprintf(resPtr, responseStrLen, API_RETURN_FMT, actionStr, statusStr, plugName, response->payload);
   else
-    snprintf(responseStr, responseStrLen, API_RETURN_FMT, actionStr, statusStr, plugName, EMPTY_STR);
+    snprintf(resPtr, responseStrLen, API_RETURN_FMT, actionStr, statusStr, plugName, EMPTY_STR);
 
-  SYSLOG(LOG_INFO, "API Response: %s", responseStr);
-  int r = 0;
+  SYSLOG(LOG_INFO, "API Response: %s", resPtr);
 
-  //message is already being sent, queue up another message
-  r = PluginSocket_writeToSocket(wsi, responseStr, -1);
-  free(responseStr);
-
-  return r;
+  //responseStr is created with LWS header, set 'noHeader' flag and responseStr will be free'd after
+  //it is sent
+  return PluginSocket_writeToSocket(wsi, responseStr, -1, 1);
 }

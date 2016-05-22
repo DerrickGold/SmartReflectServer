@@ -570,8 +570,14 @@ static int API_Callback(struct lws *wsi, websocket_callback_type reason, void *u
   if (wsi) proto = (struct lws_protocols *) lws_get_protocol(wsi);
 
   switch (reason) {
+    case LWS_CALLBACK_SERVER_WRITEABLE: {
+      PluginSocket_writeBuffers(wsi);
+      lws_callback_on_writable(wsi);
+    } break;
+
     case LWS_CALLBACK_ESTABLISHED:
       SYSLOG(LOG_INFO, "InputReader connection established established[%s]", proto->name);
+      lws_callback_on_writable(wsi);
       break;
 
     case LWS_CALLBACK_RECEIVE: {
@@ -649,7 +655,7 @@ int API_Parse(struct lws *socket, char *in, size_t len) {
   if (strncmp(in, CLIENT_API_HEADER, headerLen))
     return 0;
 
-  size_t newLen = len - (headerLen - 1);
+  size_t newLen = len - headerLen;
   char *temp = malloc(newLen);
   if (!temp) return -1;
 

@@ -186,10 +186,22 @@ void Display_Cleanup(void) {
 static int _displayCallback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len) {
 
   switch (reason) {
+
+    case LWS_CALLBACK_SERVER_WRITEABLE: {
+
+      if (!displaySocketInstance)
+        return 0;
+
+      PluginSocket_writeBuffers(displaySocketInstance);
+      lws_callback_on_writable(displaySocketInstance);
+    } break;
+
+
     case LWS_CALLBACK_ESTABLISHED:
 
       //_displayConnected = 1;
       displaySocketInstance = wsi;
+      lws_callback_on_writable(displaySocketInstance);
       break;
 
     case LWS_CALLBACK_RECEIVE:
@@ -390,8 +402,10 @@ int Display_IsDisplayConnected(void) {
 */
 int Display_SendFrontendMsg(char *msg, size_t size) {
 
-  if (!Display_IsDisplayConnected()) return -1;
-  return PluginSocket_writeToSocket(displaySocketInstance, msg, size);
+  if (!Display_IsDisplayConnected())
+    return -1;
+
+  return PluginSocket_writeToSocket(displaySocketInstance, msg, size, 0);
 }
 
 /*

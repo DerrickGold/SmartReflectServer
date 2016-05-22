@@ -9,6 +9,7 @@
 #include <syslog.h>
 #include <libwebsockets.h>
 
+#include "protocolWrite.h"
 #include "pluginSocket.h"
 #include "misc.h"
 
@@ -18,70 +19,14 @@
 
 #define SOCKET_TIMEOUT 50
 #define BASE_PROTO_POOL 2
-#define NUM_BUFFERED_WRITES 256
+
 
 /*
  * Main context for the socket server
  */
 struct lws_context *_context = NULL;
 
-typedef struct BufferedWrite_s {
-    struct lws *socket;
-    void *msg;
-    size_t len;
-} BufferedWrite_t;
-
-typedef struct WriteBuffers_s {
-    BufferedWrite_t writes[NUM_BUFFERED_WRITES];
-    size_t lastBuffered, lastWritten;
-} WriteBuffers_t;
-
-
-static WriteBuffers_t WriteBuffer = {
-        .lastBuffered = 0,
-        .lastWritten = 0
-};
-
 static int portNumber = -1;
-
-
-static void bufferSocketWrite(struct lws *socket, void *msg, size_t len) {
-
-  BufferedWrite_t *curWrite = &WriteBuffer.writes[WriteBuffer.lastBuffered];
-  if (curWrite->socket) {
-    SYSLOG(LOG_ERR, "WRITING OVER BUFFERED MSG");
-    free(curWrite->msg);
-  }
-  curWrite->socket = socket;
-  curWrite->msg = msg;
-  curWrite->len = len;
-
-  WriteBuffer.lastBuffered++;
-  WriteBuffer.lastBuffered %= NUM_BUFFERED_WRITES;
-}
-
-static void flushSocketWrites(void) {
-
-  int slot = WriteBuffer.lastWritten;
-
-  while (!WriteBuffer.writes[slot].socket || lws_partial_buffered(WriteBuffer.writes[slot].socket)) {
-    slot++;
-    slot %= NUM_BUFFERED_WRITES;
-
-    WriteBuffer.lastWritten = slot;
-
-    if (slot == WriteBuffer.lastBuffered)
-      break;
-  }
-
-  BufferedWrite_t *curWrite = &WriteBuffer.writes[slot];
-  if (curWrite->socket) {
-    lws_write(curWrite->socket, curWrite->msg + LWS_SEND_BUFFER_PRE_PADDING, curWrite->len, LWS_WRITE_TEXT);
-    free(curWrite->msg);
-    curWrite->msg = NULL;
-    curWrite->socket = NULL;
-  }
-}
 
 
 /*
@@ -91,7 +36,7 @@ static void flushSocketWrites(void) {
 static int _protocolCount = 0;
 static int _lastProtocol = 0;
 struct lws_protocols *_protocols = NULL;
-
+static ProtocolWrites_t protocolWriteQueues = {0, 0};
 /*
  * protocol list must end with a protocol
  * that has a null callback
@@ -244,10 +189,15 @@ int PluginSocket_AddProtocol(struct lws_protocols *proto) {
   _protocols[_lastProtocol].user = proto->user;
   _protocols[_lastProtocol].rx_buffer_size = 0;
   _protocols[_lastProtocol].per_session_data_size = proto->per_session_data_size;
+  _protocols[_lastProtocol].id = _lastProtocol;
+
+  Protocol_setProtocolCount(&protocolWriteQueues, _lastProtocol);
+  Protocol_initQueue(&protocolWriteQueues, _lastProtocol);
 
   _lastProtocol++;
 
-  if (addEnd) PluginSocket_AddProtocol(&listTerminator);
+  if (addEnd)
+    PluginSocket_AddProtocol(&listTerminator);
 
   //return success
   return 0;
@@ -263,12 +213,15 @@ void PluginSocket_RemoveProtocol(char *protocolName) {
     //once we've found the protocol to replace, mark its position, then continue
     if (pos == -1 && !strcmp(_protocols[i].name, protocolName)) {
       pos = i;
+      Protocol_removeProtocol(&protocolWriteQueues, _protocols[i].id);
       continue;
     } else if (pos > -1) {
 
       //i should be ahead of pos now, so we can shift the rest of the protocol
       //list overtop of the protocol we are removing
       memcpy(&_protocols[pos++], &_protocols[i], sizeof(struct lws_protocols));
+      //make sure the id's point to the correct protocol buffer
+      _protocols[pos - 1].id = _protocols[i].id;
     }
   }
 
@@ -283,7 +236,6 @@ void PluginSocket_RemoveProtocol(char *protocolName) {
 void PluginSocket_Update(void) {
 
   lws_service(_context, SOCKET_TIMEOUT);
-  flushSocketWrites();
 }
 
 /*
@@ -293,35 +245,47 @@ void PluginSocket_Update(void) {
  * LWS_SEND_BUFFER_PRE_PADDING. This function will
  * apply said padding to each message sent.
  */
-int PluginSocket_writeToSocket(struct lws *wsi_in, char *str, int str_size_in) {
+int PluginSocket_writeToSocket(struct lws *wsi_in, char *str, int str_size_in, char noHeader) {
 
-  if (str == NULL || wsi_in == NULL)
+  if (str == NULL || wsi_in == NULL || !str_size_in)
     return -1;
 
-  int n = 0;
   int len;
   unsigned char *out = NULL;
 
-  if (str_size_in < 1)
-    len = strlen(str);
-  else
+  if (str_size_in < 1) {
+    char *ptr = str;
+
+    ptr += (noHeader != 0) * LWS_SEND_BUFFER_PRE_PADDING;
+    len = strlen(ptr);
+  } else
     len = str_size_in;
 
-  out = malloc(sizeof(char) * (LWS_SEND_BUFFER_PRE_PADDING + len));
-  if (!out) {
-    SYSLOG(LOG_ERR, "PluginSocket_writeToSocket: message padding alloc failed");
-    return -1;
-  }
+  if (!noHeader) {
+    out = malloc(sizeof(char) * (LWS_SEND_BUFFER_PRE_PADDING + len));
+    if (!out) {
+      SYSLOG(LOG_ERR, "PluginSocket_writeToSocket: message padding alloc failed");
+      return -1;
+    }
 
-  //* setup the buffer*/
-  memcpy(out + LWS_SEND_BUFFER_PRE_PADDING, str, len);
+    //* setup the buffer*/
+    memcpy(out + LWS_SEND_BUFFER_PRE_PADDING, str, len);
+  }
+  else
+    out = str;
 
   //add this message to the write buffer
-  bufferSocketWrite(wsi_in, out, len);
-  //process the next message in the buffer
-  flushSocketWrites();
+  Protocol_addWriteToQueue(&protocolWriteQueues, wsi_in, out, len);
+  return 0;
+}
 
-  return n;
+void PluginSocket_writeBuffers(struct lws *wsi) {
+  struct lws_protocols *proto = (struct lws_protocols *) lws_get_protocol(wsi);
+  if (!proto) {
+    SYSLOG(LOG_ERR, "ERROR: No protocol to write!");
+    return;
+  }
+  Protocol_processQueue(&protocolWriteQueues, proto->id);
 }
 
 /*
@@ -333,6 +297,7 @@ static struct lws_context *_makeContext(int port) {
   portNumber = port;
   PluginSocket_AddProtocol(&listTerminator);
   printProtocols();
+
 
   const char *interface = NULL;
   struct lws_context_creation_info info;
@@ -350,7 +315,6 @@ static struct lws_context *_makeContext(int port) {
   info.port = port;
   info.iface = interface;
   info.protocols = _protocols;
-  //info.extensions = lws_get_internal_extensions();
   info.ssl_cert_filepath = cert_path;
   info.ssl_private_key_filepath = key_path;
   info.gid = -1;
@@ -358,10 +322,6 @@ static struct lws_context *_makeContext(int port) {
   info.options = opts;
   info.max_http_header_pool = 256;
   info.mounts = &indexMount;
-  /*info.timeout_secs = 10;
-  info.ka_probes = 3;
-  info.ka_time = 5;
-  info.ka_interval = 2;*/
 
   //* create libwebsocket context. */
   context = lws_create_context(&info);
@@ -383,7 +343,9 @@ int PluginSocket_Start(int port) {
   if (!_context)
     _context = _makeContext(port);
 
-  if (_context != NULL) return 0;
+  if (_context != NULL)
+    return 0;
+
   return -1;
 }
 
@@ -408,6 +370,7 @@ void PluginSocket_Cleanup(void) {
   _basePath = NULL;
 
   lws_context_destroy(_context);
+  Protocol_destroyQueues(&protocolWriteQueues);
   PluginSocket_FreeProtocolList();
   _context = NULL;
 

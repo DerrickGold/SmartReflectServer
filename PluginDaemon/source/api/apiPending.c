@@ -80,7 +80,7 @@ void APIPending_freeSlot(int slot) {
 
 void APIPending_update(void) {
 
-  do {
+  //do {
 
     char *resp = NULL;
     PendingAction_t *pending = &pendingActions[updateAction];
@@ -106,7 +106,6 @@ void APIPending_update(void) {
           goto update;
 
         APIResponse_concat(pending->response, resp, Plugin_ClientGetResponseSize(pending->plugin));
-        //Plugin_FreeFrontEndResponse(pending->plugin);
         Plugin_ClientFreeResponse(pending->plugin);
         break;
 
@@ -123,7 +122,7 @@ void APIPending_update(void) {
     updateAction++;
     updateAction %= MAX_PENDING_ACTIONS;
 
-  } while (updateAction != lastAction);
+  //} while (updateAction != lastAction);
 
 
 }

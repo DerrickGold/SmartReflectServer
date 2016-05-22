@@ -30,7 +30,9 @@ extern void PluginSocket_Update(void);
 
 extern void PluginSocket_Cleanup(void);
 
-extern int PluginSocket_writeToSocket(struct lws *wsi_in, char *str, int str_size_in);
+extern int PluginSocket_writeToSocket(struct lws *wsi_in, char *str, int str_size_in, char noHeader);
+
+extern void PluginSocket_writeBuffers(struct lws *wsi);
 
 extern char PluginSocket_ServeHtmlFile(char *htmlPath);
 

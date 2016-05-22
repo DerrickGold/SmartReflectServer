@@ -105,8 +105,18 @@ static int Plugin_SocketCallback(struct lws *wsi, websocket_callback_type reason
   }
 
   switch (reason) {
-    case LWS_CALLBACK_SERVER_WRITEABLE:
-      break;
+    case LWS_CALLBACK_SERVER_WRITEABLE: {
+
+      if (!proto || !proto->user)
+        return 0;
+
+      Plugin_t *plugin = (Plugin_t *) proto->user;
+      if (!plugin->socketInstance)
+        return 0;
+
+      PluginSocket_writeBuffers(plugin->socketInstance);
+      lws_callback_on_writable(plugin->socketInstance);
+    } break;
 
     case LWS_CALLBACK_ESTABLISHED: {
       //SYSLOG(LOG_INFO, "Plugin_SocketCallback established[%s]", proto->name);
@@ -115,7 +125,7 @@ static int Plugin_SocketCallback(struct lws *wsi, websocket_callback_type reason
       if (!plugin->socketInstance) {
         SYSLOG(LOG_INFO, "Plugin_SocketCallback got instance![%s]", Plugin_GetName(plugin));
         plugin->socketInstance = wsi;
-
+        lws_callback_on_writable(plugin->socketInstance);
         //send the frontend data to the browser once the plugin connects
         if (!Plugin_isFrontendLoaded(plugin))
           Plugin_LoadFrontend(plugin);
@@ -153,7 +163,7 @@ static int Plugin_SocketCallback(struct lws *wsi, websocket_callback_type reason
         else {
           //if there is an external client connected specifically for this plugin, send them a response
           if (plugin->externSocketInstance)
-            PluginSocket_writeToSocket(plugin->externSocketInstance, clientData, clientSize);
+            PluginSocket_writeToSocket(plugin->externSocketInstance, clientData, clientSize, 0);
         }
       }
     }
@@ -205,6 +215,18 @@ static int Plugin_ExternalSocketCallback(struct lws *wsi, websocket_callback_typ
   if (wsi) proto = (struct lws_protocols *) lws_get_protocol(wsi);
 
   switch (reason) {
+    case LWS_CALLBACK_SERVER_WRITEABLE: {
+
+      if (!proto || !proto->user)
+        return 0;
+
+      Plugin_t *plugin = (Plugin_t *) proto->user;
+      if (!plugin->externSocketInstance)
+        return 0;
+
+      PluginSocket_writeBuffers(plugin->externSocketInstance);
+      lws_callback_on_writable(plugin->externSocketInstance);
+    } break;
 
     case LWS_CALLBACK_ESTABLISHED: {
       SYSLOG(LOG_INFO, "Plugin_ExternalSocketCallback established[%s]", proto->name);
@@ -212,6 +234,7 @@ static int Plugin_ExternalSocketCallback(struct lws *wsi, websocket_callback_typ
       if (proto) {
         Plugin_t *plugin = (Plugin_t *) proto->user;
         plugin->externSocketInstance = wsi;
+        lws_callback_on_writable(plugin->externSocketInstance);
       }
     }
       break;
@@ -243,7 +266,7 @@ static int Plugin_ExternalSocketCallback(struct lws *wsi, websocket_callback_typ
 
         PluginSocket_writeToSocket(plugin->socketInstance,
                                    SocketResponse_get(externResponse),
-                                   SocketResponse_size(externResponse) - 1);
+                                   SocketResponse_size(externResponse) - 1, 0);
       }
 
 
@@ -564,10 +587,9 @@ int Plugin_SendMsg(Plugin_t *plugin, char *command, char *data) {
   char *cmd = PluginComLib_makeMsg(command, data);
   if (!cmd) return -1;
 
-  int written = PluginSocket_writeToSocket(plugin->socketInstance, cmd, -1);
-  free(cmd);
-
-  return written;
+  //PluginComLib_makeMsg creates a message with the LWS padding, use noHeader flag
+  //for writing, and it (cmd) will get free'd after its written
+  return PluginSocket_writeToSocket(plugin->socketInstance, cmd, -1, 1);
 }
 
 

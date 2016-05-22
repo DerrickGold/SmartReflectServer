@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <syslog.h>
 #include <errno.h>
+#include <libwebsockets.h>
 
 #include "pluginComLib.h"
 #include "misc.h"
@@ -70,25 +71,21 @@ char *PluginComLib_makeMsg(char *command, char *data) {
   //make sure a command is given
   if (!command) return NULL;
 
-  size_t bufLen = strlen(COMMAND_START) + strlen(command) + strlen(COMMAND_END) + strlen(DATA_START) +
+  size_t bufLen =  strlen(COMMAND_START) + strlen(command) + strlen(COMMAND_END) + strlen(DATA_START) +
                   +strlen(DATA_END);
 
   if (data) bufLen += strlen(data) * 2;
 
 
-  char *buffer = calloc(bufLen, sizeof(char));
+  char *buffer = calloc(bufLen + LWS_SEND_BUFFER_PRE_PADDING, sizeof(char));
   if (!buffer) {
     SYSLOG(LOG_ERR, "PluginComLib_makeMsg: error allocating command");
     return NULL;
   }
 
-  char *pos = buffer;
+  char *pos = buffer + LWS_SEND_BUFFER_PRE_PADDING;
 
-  strcat(pos, COMMAND_START);
-  strcat(pos, command);
-  strcat(pos, COMMAND_END);
-  strcat(pos, DATA_START);
-  pos += strlen(pos);
+  pos += snprintf(pos, bufLen, "%s%s%s%s", COMMAND_START, command, COMMAND_END, DATA_START);
 
   if (data != NULL) {
     size_t byte = 0;
@@ -111,7 +108,8 @@ char *PluginComLib_makeMsg(char *command, char *data) {
     } while (byte++ < strlen(data) - 1);
     *pos = '\0';
   }
-  strcat(pos, DATA_END);
+
+  memcpy(pos, DATA_END, strlen(DATA_END));
   return buffer;
 }
 
