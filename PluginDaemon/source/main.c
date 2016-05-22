@@ -230,8 +230,6 @@ static int initializeDaemon(char *localDir, char *pluginDir, int portNum) {
   Display_Generate(portNum, COMS_DIR, CSS_DIR, JSLIBS_DIR, INDEX_FILE);
   API_Init();
 
-  //set socket server to send index page if necessary
-  PluginSocket_ServeHtmlFile(INDEX_FILE);
   SYSLOG(LOG_INFO, "Main: creating socket");
   //initialize the websocket interface
   if (PluginSocket_Start(portNum)) {

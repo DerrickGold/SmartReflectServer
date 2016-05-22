@@ -649,11 +649,12 @@ int API_Parse(struct lws *socket, char *in, size_t len) {
   if (strncmp(in, CLIENT_API_HEADER, headerLen))
     return 0;
 
-  char *temp = malloc(len - headerLen);
+  size_t newLen = len - (headerLen - 1);
+  char *temp = malloc(newLen);
   if (!temp) return -1;
 
-  memcpy(temp, in + headerLen, len);
-  parseInput(temp, len, socket);
+  memcpy(temp, in + headerLen, newLen);
+  parseInput(temp, newLen, socket);
 
   free(temp);
   return 1;
