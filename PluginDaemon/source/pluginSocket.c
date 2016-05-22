@@ -107,8 +107,15 @@ struct lws_protocols listTerminator = {
 static char *_htmlPath = NULL;
 static char *_basePath = NULL;
 
-static const struct lws_protocol_vhost_options extra_mimetypes = {
+static const struct lws_protocol_vhost_options bmp_mimetypes = {
         NULL,
+        NULL,
+        ".bmp",
+        "image/bmp"
+};
+
+static const struct lws_protocol_vhost_options extra_mimetypes = {
+        (struct lws_protocol_vhost_options *) &bmp_mimetypes,
         NULL,
         ".woff2",
         "application/font-woff"
@@ -404,36 +411,4 @@ void PluginSocket_Cleanup(void) {
   PluginSocket_FreeProtocolList();
   _context = NULL;
 
-}
-
-/*
- * Set the location of index.html file to serve
- * via the http server when accessing '/' url
- */
-char PluginSocket_ServeHtmlFile(char *htmlPath) {
-
-  if (_htmlPath)
-    free(_htmlPath);
-
-  _htmlPath = allocStr(htmlPath);
-  if (!_htmlPath)
-    return -1;
-
-  char *base = strrchr(_htmlPath, '/');
-  if (!base)
-    return 0;
-
-  //temporarily set the '/' to end of string for copying to basepath
-  char old = *base;
-  *base = '\0';
-
-
-  _basePath = allocStr(_htmlPath);
-  if (!_basePath) {
-    *base = old;
-    return -1;
-  }
-
-  *base = old;
-  return 0;
 }

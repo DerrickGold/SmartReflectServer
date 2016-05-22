@@ -36,6 +36,5 @@ extern char PluginSocket_ServeHtmlFile(char *htmlPath);
 
 extern char PluginSocket_SetComDir(char *comDir);
 
-extern int PluginSocket_serveHttp(struct lws *wsi, char *file, size_t len);
 
 #endif //MAGICMIRROR_PLUGINSOCKET_H
