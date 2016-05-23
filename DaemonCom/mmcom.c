@@ -10,7 +10,9 @@
 #include <unistd.h>
 #include <libgen.h> //include for basename
 #include <signal.h>
+#include <time.h>
 #include <libwebsockets.h>
+
 
 #define DEFAULT_PORT 5000
 
@@ -41,6 +43,7 @@
  "\t\t\tPlugin Attribute: '<attribute>:<new value>'\n"
 
 
+static char API_IDENTIFIER[256];
 static char *COMMAND_BUFFER = NULL;
 
 static char *prgmName = NULL;
@@ -54,75 +57,69 @@ struct session_data {
 };
 
 
-int parseResponse(char *response, char **action, char **status, char **plugin, char **payload) {
+static int parseResponseSection(char *input, char *inputEnd, char **output, char **nextLine) {
 
-    if (!response) {
+    char parsed = 0;
+    char *pos = input, *outStart = NULL;
+
+    //otherwise, leading whitespace removed
+    outStart = pos;
+
+    //find the end of the line now
+    while (pos < inputEnd && *pos != ':' && *pos != '\0')
+        pos++;
+
+    //end of input, no further lines given
+    if (pos >= inputEnd - 1)
+        parsed++;
+    else {
+        //otherwise, we have hit the end of the given command and more
+        //input exists, so remove the deliminating the command, and
+        //advance the pos ptr to the next input
+        (*pos) = '\0';
+        pos++;
+    }
+
+    if (output && strcmp(outStart, ":"))
+        *output = outStart;
+
+    *nextLine = pos;
+    return parsed;
+}
+
+int parseResponse(char *response, size_t responseLen, char **identifier, char **action, char **status, char **plugin,
+                  char **payload)
+{
+
+    if (!response)
         return -1;
-    }
 
-    char delim = ':';
+    char *input = response,
+            *inputEnd = input + responseLen;
 
-    if (action)
-        *action = response;
 
-    //search for status
-    while(*response != delim && *response != '\0')
-        response++;
-
-    if (*response == '\0') {
-        //hit end of response, error!
+    //optional identifier
+    if (parseResponseSection(input, inputEnd, identifier, &input))
         return -1;
-    }
 
-    //mark off the end of the action
-    *response = '\0';
-    response++;
-    //get the status
-    if (status)
-        *status = response;
+    //required action
+    if (parseResponseSection(input, inputEnd, action, &input))
+        return -1;
 
-    //search for plugin that action operates on
-    while(*response != delim && *response != '\0')
-        response++;
+    //status is always provided
+    if (parseResponseSection(input, inputEnd, status, &input))
+        return -1;
 
-    if (*response == '\0') {
-        *payload = NULL;
-        return 0;
-    }
+    //plugin depends on the action
+    if (parseResponseSection(input, inputEnd, plugin, &input))
+        return -1;
 
-    //otherwise, : was found, make it end of string
-    *response = '\0';
-    response++;
-    if (*response == delim) {
-        //no plugin was provided for this action
-        response++;
-        if (payload)
-            *payload++ = response;
-        //no more information to be found after payload
-        return 0;
-
-    } else {
-        //plugin was provided for this action
-        if (plugin)
-            *plugin = response;
-    }
-
-    //now scan for payload, which is optional
-    while(*response != delim && *response != '\0')
-        response++;
-
-    if (*response == '\0')
-        //hit end of string before finding the next : delimited parameter
-        return 0;
-
-    response++;
-    //otherwise, we can set the payload
-    if (payload)
-        *payload = response;
+    //payload depends on the action
+    if (parseResponseSection(input, inputEnd, payload, &input))
+        return -1;
 
     return 0;
 }
-
 
 //A safe version of strlen
 static size_t strlens(char *string) {
@@ -195,20 +192,34 @@ static int ws_service_callback(
         destroy_flag = 1;
         break;
 
-    case LWS_CALLBACK_CLIENT_RECEIVE:
-        //print back the received info from the mirror
-        printf("%s", (char *)in);
+    case LWS_CALLBACK_CLIENT_RECEIVE: {
+      //print back the received info from the mirror
+      //then exit
+      char *identifier = NULL;
+      char *status = NULL;
+      char *response = malloc(len);
+      if (!response) {
+        fprintf(stderr, "Error allocating response string\n");
+        return -1;
+      }
+      //memcpy(response, in, len);
+      strcpy(response, in);
+      parseResponse((char *) in, len, &identifier, NULL, &status, NULL, NULL);
+
+      if (!strcmp(identifier, API_IDENTIFIER)) {
+        //only process responses specific to this program
+        printf("%s", (char *) response);
+        free(response);
+
         if (lws_remaining_packet_payload(wsi) == 0) {
           printf("\n");
         }
-        //then exit
-        char *status = NULL;
-
-        parseResponse((char *)in, NULL, &status, NULL, NULL);
         //if there is no status replied, or the message is not
         //pending, we can exit the program
-        destroy_flag =  (!status || strcmp(status, "pending"));
-        break;
+        destroy_flag = (!status || strcmp(status, "pending"));
+      }
+
+    } break;
     default:
         break;
     }
@@ -226,6 +237,9 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
+  //generate Identifier for filtering responses
+  srand(time(NULL));
+    sprintf(API_IDENTIFIER, "mmcom%d", rand());
     char *port = NULL, *cmd = NULL, *plugin = NULL, *values = NULL;
 
     //loop through arguments and collect options
@@ -306,16 +320,22 @@ int main(int argc, char *argv[]) {
     i.ietf_version_or_minus_one = -1;
     i.protocol = protoName;
 
-    size_t len = strlens(cmd) + strlens(plugin) + strlens(values) + 4;
+    size_t len = strlen(API_IDENTIFIER) + strlens(cmd) + strlens(plugin) + strlens(values) + 5;
     COMMAND_BUFFER = calloc(len + 1, sizeof(char));
     if (!COMMAND_BUFFER) {
         fprintf(stderr, "Generated command string too long!\n");
         return EXIT_FAILURE;
     }
 
+
+
+
+  sprintf(COMMAND_BUFFER, "%s\n", API_IDENTIFIER);
+
+
     //build command
     if (cmd != NULL) {
-      strcpy(COMMAND_BUFFER, cmd);
+      strcat(COMMAND_BUFFER, cmd);
       strcat(COMMAND_BUFFER, "\n");
     }
     if (plugin != NULL) {
