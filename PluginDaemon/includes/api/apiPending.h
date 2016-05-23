@@ -17,7 +17,8 @@ void APIPending_init(void);
 
 extern int APIPending_getFreeSlot(void);
 
-extern int APIPending_addAction(APIPendingType_e type, APIAction_e action, Plugin_t *plugin, struct lws *socket);
+extern int APIPending_addAction(APIPendingType_e type, char *id, APIAction_e action, Plugin_t *plugin,
+                                struct lws *socket);
 
 extern void APIPending_freeSlot(int slot);
 

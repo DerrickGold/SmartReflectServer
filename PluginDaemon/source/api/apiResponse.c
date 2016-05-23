@@ -4,8 +4,8 @@
 #include "apiResponse.h"
 #include "misc.h"
 
-#define API_RETURN_FMT "%s:%s:%s:%s"
-#define API_RETURN_FMT_SIZE 5
+#define API_RETURN_FMT "%s:%s:%s:%s:%s"
+#define API_RETURN_FMT_SIZE 6
 #define EMPTY_STR "\0"
 
 
@@ -70,19 +70,24 @@ int APIResponse_concat(APIResponse_t *response, char *str, int len) {
 /*
  * Prepends api header response to a return value
  */
-int APIResponse_send(APIResponse_t *response, struct lws *wsi, char *plugin, APIAction_e action, APIStatus_e status) {
+int APIResponse_send(APIResponse_t *response, struct lws *wsi, char *identifier, char *plugin, APIAction_e action, APIStatus_e status) {
 
   char *actionStr = EMPTY_STR, *statusStr = (char *) API_STATUS_STRING[status];
 
   if (action != NO_ACTION)
     actionStr = (char *) allActions[action].name;
 
+  char *apiToken = EMPTY_STR;
   char *plugName = EMPTY_STR;
 
   if (plugin)
     plugName = plugin;
 
-  size_t responseStrLen = strlen(statusStr) + strlen(actionStr) + API_RETURN_FMT_SIZE + strlen(plugName) + 1;
+  if (identifier)
+    apiToken = identifier;
+
+  size_t responseStrLen = strlen(apiToken) + strlen(statusStr) + strlen(actionStr) +
+                          API_RETURN_FMT_SIZE + strlen(plugName) + 1;
 
   if (response->payload)
     responseStrLen += strlen(response->payload);
@@ -96,9 +101,9 @@ int APIResponse_send(APIResponse_t *response, struct lws *wsi, char *plugin, API
   char *resPtr = responseStr + LWS_SEND_BUFFER_PRE_PADDING;
 
   if (response->payload)
-    snprintf(resPtr, responseStrLen, API_RETURN_FMT, actionStr, statusStr, plugName, response->payload);
+    snprintf(resPtr, responseStrLen, API_RETURN_FMT, apiToken, actionStr, statusStr, plugName, response->payload);
   else
-    snprintf(resPtr, responseStrLen, API_RETURN_FMT, actionStr, statusStr, plugName, EMPTY_STR);
+    snprintf(resPtr, responseStrLen, API_RETURN_FMT, apiToken, actionStr, statusStr, plugName, EMPTY_STR);
 
   SYSLOG(LOG_INFO, "API Response: %s", resPtr);
 

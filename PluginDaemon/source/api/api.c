@@ -200,14 +200,14 @@ static int api_PluginDisable(void *plug, void *shutdown) {
 }
 
 
-static int api_response(APIResponse_t *response, struct lws *wsi, Plugin_t *plugin, APIAction_e action,
+static int api_response(APIResponse_t *response, struct lws *wsi, char *identifier, Plugin_t *plugin, APIAction_e action,
                         APIStatus_e status) {
 
   char *plugName = NULL;
   if (plugin)
     plugName = Plugin_GetName(plugin);
 
-  return APIResponse_send(response, wsi, plugName, action, status);
+  return APIResponse_send(response, wsi, identifier, plugName, action, status);
 }
 
 
@@ -225,8 +225,9 @@ static int _pluginList(void *plugin, void *data) {
 /*
  * Sets an action to wait for a response from the daemon plugin communicator.
  */
-static APIStatus_e api_waitForDaemonResponse(APIResponse_t *response, APIAction_e action, Plugin_t *plugin,
-                                             struct lws *socket) {
+static APIStatus_e api_waitForDaemonResponse(APIResponse_t *response, char *identifier, APIAction_e action,
+                                             Plugin_t *plugin, struct lws *socket)
+{
 
   if (!Display_IsDisplayConnected()) {
     APIResponse_concat(response, "No display connected.", -1);
@@ -234,7 +235,7 @@ static APIStatus_e api_waitForDaemonResponse(APIResponse_t *response, APIAction_
   }
 
   APIStatus_e rtrn = PENDING;
-  if (!APIPending_addAction(APIPENDING_DISPLAY, action, plugin, socket)) {
+  if (!APIPending_addAction(APIPENDING_DISPLAY, identifier, action, plugin, socket)) {
     Display_ClearDisplayResponse();
   } else {
     rtrn = FAIL;
@@ -248,8 +249,9 @@ static APIStatus_e api_waitForDaemonResponse(APIResponse_t *response, APIAction_
  * Sets an action to wait for a response for a value obtained from
  * a plugin's frontend.
  */
-static APIStatus_e api_waitForPluginResponse(APIResponse_t *response, APIAction_e action, Plugin_t *plugin,
-                                             struct lws *socket) {
+static APIStatus_e api_waitForPluginResponse(APIResponse_t *response, char *identifier, APIAction_e action,
+                                             Plugin_t *plugin, struct lws *socket)
+{
 
   if (!Plugin_isConnected(plugin)) {
     APIResponse_concat(response, "Plugin not connected to frontend", -1);
@@ -257,7 +259,7 @@ static APIStatus_e api_waitForPluginResponse(APIResponse_t *response, APIAction_
   }
 
   APIStatus_e rtrn = PENDING;
-  if (!APIPending_addAction(APIPENDING_PLUGIN, action, plugin, socket)) {
+  if (!APIPending_addAction(APIPENDING_PLUGIN, identifier, action, plugin, socket)) {
     //Plugin_FreeFrontEndResponse(plugin);
     Plugin_ClientFreeResponse(plugin);
   } else {
@@ -318,7 +320,7 @@ static int api_getPluginSetting(APIResponse_t *response, Plugin_t *plugin, char 
 }
 
 
-static void _applyAction(struct lws *wsi, APIAction_e action, Plugin_t *plugin, char *value) {
+static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action, Plugin_t *plugin, char *value) {
 
   APIStatus_e status = SUCCESS;
 
@@ -408,7 +410,7 @@ static void _applyAction(struct lws *wsi, APIAction_e action, Plugin_t *plugin, 
       if (Display_GetDisplaySize())
         status = FAIL;
 
-      status = api_waitForDaemonResponse(immResponse, action, plugin, wsi);
+      status = api_waitForDaemonResponse(immResponse, identifier, action, plugin, wsi);
     }
       break;
     case STOP:
@@ -426,7 +428,7 @@ static void _applyAction(struct lws *wsi, APIAction_e action, Plugin_t *plugin, 
       //modify this css file with the values
       SYSLOG(LOG_INFO, "Modified plugin css");
       Plugin_SendMsg(plugin, "getcss", value);
-      status = api_waitForPluginResponse(immResponse, action, plugin, wsi);
+      status = api_waitForPluginResponse(immResponse, identifier, action, plugin, wsi);
       break;
 
     case DUMP_CSS:
@@ -443,7 +445,7 @@ static void _applyAction(struct lws *wsi, APIAction_e action, Plugin_t *plugin, 
 
     case JS_PLUG_CMD: {
       Plugin_SendMsg(plugin, "jsPluginCmd", value);
-      status = api_waitForPluginResponse(immResponse, action, plugin, wsi);
+      status = api_waitForPluginResponse(immResponse, identifier, action, plugin, wsi);
       //WAIT_FOR_RESPONSE;
     }
       break;
@@ -471,41 +473,35 @@ static void _applyAction(struct lws *wsi, APIAction_e action, Plugin_t *plugin, 
 
   _response:
   //respond with the built payload for the given action
-  api_response(immResponse, wsi, plugin, action, status);
+  api_response(immResponse, wsi, identifier, plugin, action, status);
   APIResponse_free(immResponse);
 }
 
 
-/*
- * Parses input given to standard input protocol and applys an action
- *
- * Inputs follow the form of:
- * <action>\n<plugin>\n<values>
- */
-static void parseInput(char *input, size_t inputLen, struct lws *wsi) {
 
-  int parsed = 0;
-  char *inputEnd = input + inputLen;
+static int parseInputLine(char *input, char *inputEnd, char **output, char **nextLine) {
 
+  char parsed = 0;
+  char *pos = input, *outStart = NULL;
 
-  Plugin_t *plugin = NULL;
-  char *cmd = input, *pluginName = NULL, *value = NULL;
-  //first get the command string
-  char *pos = cmd;
   //eliminate leading whitespace for the command
   while (pos < inputEnd && (*pos == ' ' || *pos == '\t'))
     pos++;
 
-  //if we have hit the end of the input string, then no action was given
-  if (pos >= inputEnd) return;
+  //exhausted input, nothing read
+  if (pos >= inputEnd)
+    return -1;
 
-  cmd = pos;
-  //find end of the commmand
+  //otherwise, leading whitespace removed
+  outStart = pos;
+
+  //find the end of the line now
   while (pos < inputEnd && *pos != '\n' && *pos != '\0')
     pos++;
 
-  //hit end of input, there is nothing after the given command
-  if (pos >= inputEnd - 1) parsed++;
+  //end of input, no further lines given
+  if (pos >= inputEnd - 1)
+    parsed++;
   else {
     //otherwise, we have hit the end of the given command and more
     //input exists, so remove the deliminating the command, and
@@ -513,37 +509,66 @@ static void parseInput(char *input, size_t inputLen, struct lws *wsi) {
     (*pos) = '\0';
     pos++;
   }
+
+  if (pos - 1 != outStart)
+    *output = outStart;
+
+  *nextLine = pos;
+  return parsed;
+}
+/*
+ * Parses input given to standard input protocol and applies an action
+ *
+ * Inputs follow the form of:
+ * <requestID>\n<action>\n<plugin>\n<values>
+ *
+ * Multiple clients can be using the API at the same time, requestID is an identifying
+ * token that is provided by the client, and then embedded back into the response as to provide
+ * a way for the client to recognize responses intended for it to receive.
+ */
+static void parseInput(char *input, size_t inputLen, struct lws *wsi) {
+
+  int parsed = 0, parseStatus = 0;
+  char *inputEnd = input + inputLen;
+
+
+  Plugin_t *plugin = NULL;
+  char *identifier = NULL, *cmd = NULL, *pluginName = NULL, *value = NULL;
+  //first get the command string
+
+  char *pos = input;
+
+  //first read identifier if given
+  if ((parseStatus = parseInputLine(pos, inputEnd, &identifier, &pos)) < 0) {
+    //end of string
+    return;
+  }
+  parsed += (parseStatus > 0);
+  SYSLOG(LOG_INFO, "Given Identifier Token: %s", identifier);
+
+  //next get the command that is to be executed
+  if ((parseStatus = parseInputLine(pos, inputEnd, &cmd, &pos)) < 0) {
+    //end of string
+    return;
+  }
+  parsed += (parseStatus > 0);
   SYSLOG(LOG_INFO, "Entered Command: %s", cmd);
 
   //check to see if the entered command is a valid API call
   APIAction_e action = findAPICall(cmd);
-  SYSLOG(LOG_INFO, "Done looking for action: %d", action);
 
   //if all input has been consumed, try the action
   if (parsed || action == NO_ACTION)
     goto _doAction;
 
   SYSLOG(LOG_INFO, "Action Num: %d", action);
-  //Otherwise, there is more to parse
-  //string leading whitespace
-  while (pos < inputEnd && (*pos == ' ' || *pos == '\t'))
-    pos++;
-
-  //incomplete plugin name...
-  if (pos >= inputEnd)
-    goto _doAction;
-
-  //get plugin name
-  pluginName = pos;
-  //now remove the input delimiter
-  while (pos < inputEnd && *pos != '\n')
-    pos++;
-
-  if (pos >= inputEnd) parsed++;
-  else {
-    *pos = '\0';
-    pos++;
+  //Next get the plugin name if required
+  if ((parseStatus = parseInputLine(pos, inputEnd, &pluginName, &pos)) < 0) {
+    //end of string
+    return;
   }
+  parsed += (parseStatus > 0);
+
   //attempt to find the plugin
   plugin = PluginList_Find(pluginName);
 
@@ -556,7 +581,7 @@ static void parseInput(char *input, size_t inputLen, struct lws *wsi) {
 
   _doAction:
   //now check if plugin exists
-  _applyAction(wsi, action, plugin, value);
+  _applyAction(wsi, identifier, action, plugin, value);
 }
 
 /*
@@ -585,10 +610,12 @@ static int API_Callback(struct lws *wsi, websocket_callback_type reason, void *u
       if (!len)
         return 0;
 
-      SYSLOG(LOG_INFO, "InputReader received command");
+
 
       SocketResponse_build(&inputResponse, wsi, (char *) in, len);
       if (SocketResponse_done(&inputResponse)) {
+
+        SYSLOG(LOG_INFO, "Command->%s", SocketResponse_get(&inputResponse));
         //wait for full message before parsing input
         if (proto) {
           parseInput(SocketResponse_get(&inputResponse),

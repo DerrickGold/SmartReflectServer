@@ -1,9 +1,10 @@
 var MirrorAPI = function(addr) {
 
 	var instance = this;
-	this.doLogging = false;
+	this.doLogging = true;
 	this.stdinSocket = null;
 	this.socketBusy = false;
+	this.apiIdentifier = "mirrorAPI" + Math.random().toString(36);
 
 
 	/* User callback functions */
@@ -93,83 +94,93 @@ var MirrorAPI = function(addr) {
 
 	this.apiCall = {
         list: function(plugin, data) {
-            instance.stdinSocket.send("list\n");
+            instance.apiSend("list", null, null);
         },
         status: function(plugin, data) {
-            instance.stdinSocket.send("getstate\n"+plugin);
+            instance.apiSend("getstate", plugin, null);
         },
         enable: function(plugin, data) {
-            instance.stdinSocket.send("enable\n"+plugin);
+            instance.apiSend("enable", plugin, null);
         },
         disable: function(plugin, data) {
-            instance.stdinSocket.send("disable\n"+plugin);
+            instance.apiSend("disable", plugin, null);
         },
         setcss: function(plugin, cssObj) {
 
-        	var cmdStr = "setcss\n" + plugin + "\n";
+        	var data = "";
         	for (var key in cssObj) {
 
         		if (!cssObj.hasOwnProperty(key) || key == undefined ||
         			cssObj[key] == undefined)
         			continue;
-	        	cmdStr = cmdStr.concat(key + '=' + cssObj[key] + ";");
+	        	data = data.concat(key + '=' + cssObj[key] + ";");
         	}
         	//remove trailing ';'
-            cmdStr = cmdStr.replace(/;+$/, "");
+            data = data.replace(/;+$/, "");
             if (instance.doLogging)
-            	console.log(cmdStr);
-            instance.stdinSocket.send(cmdStr);
+            	console.log(data);
+
+            instance.apiSend("setcss", plugin, data);
         },
         getcss: function(plugin, cssvals) {
 
-            var cmdStr = "getcss\n"+plugin+"\n";
+            var data = "";
 
             cssvals.forEach(function(css) {
-                cmdStr = cmdStr.concat(css + ",");
+                data = data.concat(css + ",");
             });
 
             //remove trailing comma
-            cmdStr = cmdStr.replace(/,+$/, "");
-            instance.stdinSocket.send(cmdStr);
+            data = data.replace(/,+$/, "");
+            instance.apiSend("getcss", plugin, data);
         },
         dumpcss: function(plugin, data) {
-
-            var cmdStr ="savecss\n"+plugin+"\n";
-            instance.stdinSocket.send(cmdStr);
+            instance.apiSend("savecss", plugin, null);
         },
         mirrorsize: function(plugin, data) {
-        	instance.stdinSocket.send("mirrorsize\n");
+        	instance.apiSend("mirrorsize", null, null);
         },
         display: function(plugin, data) {
-        	instance.stdinSocket.send("display\n");
+        	instance.apiSend("display", null, null);
         },
         getopt: function(plugin, data) {
-        	instance.stdinSocket.send("getopt\n" + plugin + "\n" + data);
+        	instance.apiSend("getopt", plugin, data);
         },
         setopt: function(plugin, data) {
-        	instance.stdinSocket.send("setopt\n" + plugin + "\n" + data);
+        	instance.apiSend("setopt", plugin, data);
         },
         getdir: function(plugin, data) {
-        	instance.stdinSocket.send("getdir\n" + plugin + "\n");
+        	instance.apiSend("getdir", plugin, null);
         },
         jscmd: function(plugin, data) {
         	var jsonStr = JSON.stringify(data);
-        	instance.stdinSocket.send("jscmd\n" + plugin + "\n" + jsonStr);
+        	instance.apiSend("jscmd", plugin, jsonStr);
         }
     };
 
+    this.apiSend  = function(command, plugin, data) {
+    	var str = instance.apiIdentifier + "\n" + command + "\n";
+    	if (plugin) str += plugin + "\n";
+    	if (data) str += data;
+
+    	console.log("API STRING: \n" + str);
+
+    	instance.stdinSocket.send(str);
+    }
+
 	this.apiResponse = function(data) {
         var response = data.split(':');
-  		var res = response.slice(0, 3);
-  		res.push(response.slice(3).join(':'))
+  		var res = response.slice(0, 4);
+  		res.push(response.slice(4).join(':'))
 
   		if (instance.doLogging)
         	console.log(res);
 
-        var completedAction = res[0],
-            status = res[1],
-            plugin = res[2],
-            payload = instance.transformApiResponsePayload[completedAction](res[3]);
+        var apiIdentifier = res[0],
+        	completedAction = res[1],
+            status = res[2],
+            plugin = res[3],
+            payload = instance.transformApiResponsePayload[completedAction](res[4]);
 
         //call user defined callback
 		instance.apiResponseCallback[completedAction](status, plugin, payload);

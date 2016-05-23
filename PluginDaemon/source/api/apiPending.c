@@ -23,6 +23,7 @@ typedef struct PendingAction_s {
     APIAction_e action;
     Plugin_t *plugin;
     struct lws *socket;
+    char *identifier;
     int started;
     APIResponse_t *response;
 } PendingAction_t;
@@ -48,7 +49,7 @@ int APIPending_getFreeSlot(void) {
 }
 
 
-int APIPending_addAction(APIPendingType_e type, APIAction_e action, Plugin_t *plugin, struct lws *socket) {
+int APIPending_addAction(APIPendingType_e type, char *id, APIAction_e action, Plugin_t *plugin, struct lws *socket) {
 
   int slot = APIPending_getFreeSlot();
 
@@ -56,12 +57,23 @@ int APIPending_addAction(APIPendingType_e type, APIAction_e action, Plugin_t *pl
     APIPending_freeSlot(slot);
   }
 
+  char *idToken = NULL;
+  if (id) {
+    idToken = malloc(strlen(id) + 1);
+    if (!idToken) {
+      SYSLOG(LOG_INFO, "APIPending_addAction: Error allocating ID token.");
+      return -1;
+    }
+    strcpy(idToken, id);
+  }
+
   pendingActions[slot] = (PendingAction_t) {
           .type = type,
           .action = action,
           .plugin = plugin,
           .socket = socket,
-          .response = APIResponse_new()
+          .response = APIResponse_new(),
+          .identifier = idToken
   };
 
   return 0;
@@ -73,6 +85,12 @@ void APIPending_freeSlot(int slot) {
     return; //out of bounds
 
   APIResponse_free(pendingActions[slot].response);
+
+  if (pendingActions[slot].identifier) {
+    free(pendingActions[slot].identifier);
+    pendingActions[slot].identifier = NULL;
+  }
+
   memset(&pendingActions[slot], 0, sizeof(PendingAction_t));
   pendingActions[slot].action = NO_ACTION;
   SYSLOG(LOG_INFO, "APIPending: Clearing processed response");
@@ -113,7 +131,8 @@ void APIPending_update(void) {
         break;
     }
 
-    APIResponse_send(pending->response, pending->socket, Plugin_GetName(pending->plugin), pending->action, SUCCESS);
+    APIResponse_send(pending->response, pending->socket, pending->identifier, Plugin_GetName(pending->plugin),
+                     pending->action, SUCCESS);
     //action was successful, clear it
     APIPending_freeSlot(updateAction);
 
