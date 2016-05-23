@@ -8,6 +8,8 @@
 #include <limits.h>
 #include <syslog.h>
 #include <libgen.h>
+//#include <time.h>
+#include <sched.h>
 
 #include "misc.h"
 #include "pluginSocket.h"
@@ -15,8 +17,10 @@
 #include "display.h"
 #include "api.h"
 
+//one second in nanoseconds
+#define SECOND 1000000000
+#define DEFAULT_SLEEP_DIV 100
 
-//#define TEST_FIFO "test.fifo"
 #define COMS_DIR "com"
 #define MAIN_COM "main.fifo"
 #define INDEX_FILE "index.html"
@@ -32,7 +36,9 @@
  "\tRuns the Magic Mirror process from the specified WEBFOLDER and PLUGINFOLDER\n" \
  "\tArguments:\n" \
  "\t\t-D: Runs the magic mirror application as a background process\n" \
- "\t\t-d: defines the webfolder where plugins are located\n"
+ "\t\t-d: defines the webfolder where plugins are located\n" \
+ "\t\t-p: Set what port to use for the server. Default is 5000\n" \
+ "\t\t-s: Set number of cycles per second to run the server at. Default is 100.\n"
 
 static char *prgmName = NULL;
 
@@ -248,11 +254,18 @@ static int initializeDaemon(char *localDir, char *pluginDir, int portNum) {
  * -connection status of plugins
  * --pause plugins when disconnected from frontend and resume when reconnected...
  */
-static int daemonProcess(void) {
+static int daemonProcess(unsigned int sleep) {
 
   int oldWebStatus = 0, curWebStatus = 0;
-
   int pluginSent = 0;
+
+  //prevent division by 0
+  sleep = (sleep == 0) ? 1 : sleep;
+
+  struct timespec sleepTime = {
+      .tv_nsec=SECOND/sleep
+  };
+
   while (!API_Shutdown()) {
     //update any api pending actions
     API_Update();
@@ -285,6 +298,8 @@ static int daemonProcess(void) {
     }
 
     PluginSocket_Update();
+    //sched_yield();
+    nanosleep(&sleepTime, NULL);
   }
 
   //return error status here
@@ -301,8 +316,9 @@ int main(int argc, char *argv[]) {
   prgmName = basename(argv[0]);
   int c = 0, port = WEBSOCKET_PORT;
   char *runDir = NULL;
+  unsigned int sleepDivisor = DEFAULT_SLEEP_DIV;
 
-  while ((c = getopt(argc, argv, "hDp:j:d:")) != -1) {
+  while ((c = getopt(argc, argv, "hDp:j:d:s:")) != -1) {
     switch (c) {
       case 'h':
         printHelp();
@@ -312,11 +328,13 @@ int main(int argc, char *argv[]) {
         mainDaemon();
         break;
       case 'p':
-        port = atoi(optarg);
+        port = strtol(optarg, NULL, 10);
         break;
       case 'd':
         runDir = optarg;
         break;
+      case 's':
+        sleepDivisor = strtol(optarg, NULL, 10);
       default:
         break;
     }
@@ -342,7 +360,7 @@ int main(int argc, char *argv[]) {
   }
 
   free(absPluginPath);
-  int prgmStatus = daemonProcess();
+  int prgmStatus = daemonProcess(sleepDivisor);
 
   //clean up...
   API_ShutdownPlugins();
