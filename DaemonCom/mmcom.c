@@ -13,6 +13,8 @@
 #include <time.h>
 #include <libwebsockets.h>
 
+#include "socketResponse.h"
+
 
 #define DEFAULT_PORT 5000
 
@@ -52,6 +54,8 @@ static int destroy_flag = 0;
 
 char *server = "localhost";
 
+static SocketResponse_t serverResponse;
+
 struct session_data {
     int fd;
 };
@@ -59,300 +63,302 @@ struct session_data {
 
 static int parseResponseSection(char *input, char *inputEnd, char **output, char **nextLine) {
 
-    char parsed = 0;
-    char *pos = input, *outStart = NULL;
+  char parsed = 0;
+  char *pos = input, *outStart = NULL;
 
-    //otherwise, leading whitespace removed
-    outStart = pos;
+  //otherwise, leading whitespace removed
+  outStart = pos;
 
-    //find the end of the line now
-    while (pos < inputEnd && *pos != ':' && *pos != '\0')
-        pos++;
+  //find the end of the line now
+  while (pos < inputEnd && *pos != ':' && *pos != '\0')
+    pos++;
 
-    //end of input, no further lines given
-    if (pos >= inputEnd - 1)
-        parsed++;
-    else {
-        //otherwise, we have hit the end of the given command and more
-        //input exists, so remove the deliminating the command, and
-        //advance the pos ptr to the next input
-        (*pos) = '\0';
-        pos++;
-    }
+  //end of input, no further lines given
+  if (pos >= inputEnd - 1)
+    parsed++;
+  else {
+    //otherwise, we have hit the end of the given command and more
+    //input exists, so remove the deliminating the command, and
+    //advance the pos ptr to the next input
+    (*pos) = '\0';
+    pos++;
+  }
 
-    if (output && strcmp(outStart, ":"))
-        *output = outStart;
+  if (output && strcmp(outStart, ":"))
+    *output = outStart;
 
-    *nextLine = pos;
-    return parsed;
+  *nextLine = pos;
+  return parsed;
 }
 
 int parseResponse(char *response, size_t responseLen, char **identifier, char **action, char **status, char **plugin,
-                  char **payload)
-{
+                  char **payload) {
 
-    if (!response)
-        return -1;
+  if (!response)
+    return -1;
 
-    char *input = response,
-            *inputEnd = input + responseLen;
+  char *input = response,
+          *inputEnd = input + responseLen;
 
 
-    //optional identifier
-    if (parseResponseSection(input, inputEnd, identifier, &input))
-        return -1;
+  //optional identifier
+  if (parseResponseSection(input, inputEnd, identifier, &input))
+    return -1;
 
-    //required action
-    if (parseResponseSection(input, inputEnd, action, &input))
-        return -1;
+  //required action
+  if (parseResponseSection(input, inputEnd, action, &input))
+    return -1;
 
-    //status is always provided
-    if (parseResponseSection(input, inputEnd, status, &input))
-        return -1;
+  //status is always provided
+  if (parseResponseSection(input, inputEnd, status, &input))
+    return -1;
 
-    //plugin depends on the action
-    if (parseResponseSection(input, inputEnd, plugin, &input))
-        return -1;
+  //plugin depends on the action
+  if (parseResponseSection(input, inputEnd, plugin, &input))
+    return -1;
 
-    //payload depends on the action
-    if (parseResponseSection(input, inputEnd, payload, &input))
-        return -1;
+  //payload depends on the action
+  if (payload)
+    *payload = input;
 
-    return 0;
+  return 0;
 }
 
 //A safe version of strlen
 static size_t strlens(char *string) {
-    if (!string)
-        return 0;
 
-    return strlen(string);
+  if (!string)
+    return 0;
+
+  return strlen(string);
 }
 
 
 static void printHelp() {
-    printf(HELP_TEXT, prgmName, DEFAULT_PORT);
+  printf(HELP_TEXT, prgmName, DEFAULT_PORT);
 }
 
 
-static int websocket_write_back(struct lws *wsi_in, char *str, int str_size_in)
-{
-    if (str == NULL || wsi_in == NULL)
-        return -1;
+static int websocket_write_back(struct lws *wsi_in, char *str, int str_size_in) {
 
-    int n;
-    int len;
-    char *out = NULL;
+  if (str == NULL || wsi_in == NULL)
+    return -1;
 
-    if (str_size_in < 1)
-        len = strlen(str);
-    else
-        len = str_size_in;
+  int n;
+  int len;
+  char *out = NULL;
 
-    out = (char *)malloc(sizeof(char)*(LWS_SEND_BUFFER_PRE_PADDING + len ));
-    //* setup the buffer*/
-    memcpy (out + LWS_SEND_BUFFER_PRE_PADDING, str, len );
-    //* write out*/
-    n = lws_write(wsi_in, (unsigned char*)out + LWS_SEND_BUFFER_PRE_PADDING, len, LWS_WRITE_TEXT);
-    //* free the buffer*/
-    free(out);
+  if (str_size_in < 1)
+    len = strlen(str);
+  else
+    len = str_size_in;
 
-    return n;
+  out = (char *) malloc(sizeof(char) * (LWS_SEND_BUFFER_PRE_PADDING + len));
+  //* setup the buffer*/
+  memcpy(out + LWS_SEND_BUFFER_PRE_PADDING, str, len);
+  //* write out*/
+  n = lws_write(wsi_in, (unsigned char *) out + LWS_SEND_BUFFER_PRE_PADDING, len, LWS_WRITE_TEXT);
+  //* free the buffer*/
+  free(out);
+
+  return n;
 }
 
 
-static int ws_service_callback(
-                         struct lws *wsi,
-                         enum lws_callback_reasons reason, void *user,
-                         void *in, size_t len)
-{
+static int ws_service_callback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len) {
 
-    switch (reason) {
+  switch (reason) {
 
     case LWS_CALLBACK_CLIENT_ESTABLISHED:
-        lws_callback_on_writable(wsi);
-        break;
+      lws_callback_on_writable(wsi);
+      break;
 
-      case LWS_CALLBACK_CLIENT_WRITEABLE:
+    case LWS_CALLBACK_CLIENT_WRITEABLE:
 
-        if (lws_partial_buffered(wsi) || COMMAND_BUFFER == NULL)
-          return 0;
+      if (lws_partial_buffered(wsi) || COMMAND_BUFFER == NULL)
+        return 0;
 
-        websocket_write_back(wsi, COMMAND_BUFFER, strlen(COMMAND_BUFFER));
-        //lws_callback_on_writable(wsi);
-        free(COMMAND_BUFFER);
-        COMMAND_BUFFER = NULL;
-        break;
+      websocket_write_back(wsi, COMMAND_BUFFER, strlen(COMMAND_BUFFER));
+      //lws_callback_on_writable(wsi);
+      free(COMMAND_BUFFER);
+      COMMAND_BUFFER = NULL;
+      break;
 
     case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
-        destroy_flag = 1;
-        break;
+      destroy_flag = 1;
+      break;
 
     case LWS_CALLBACK_CLOSED:
-        destroy_flag = 1;
-        break;
+      destroy_flag = 1;
+      break;
 
     case LWS_CALLBACK_CLIENT_RECEIVE: {
-      //print back the received info from the mirror
-      //then exit
-      char *identifier = NULL;
-      char *status = NULL;
-      char *response = malloc(len);
-      if (!response) {
-        fprintf(stderr, "Error allocating response string\n");
-        return -1;
-      }
-      //memcpy(response, in, len);
-      strcpy(response, in);
-      parseResponse((char *) in, len, &identifier, NULL, &status, NULL, NULL);
 
-      if (!strcmp(identifier, API_IDENTIFIER)) {
-        //only process responses specific to this program
-        printf("%s", (char *) response);
-        free(response);
+      SocketResponse_build(&serverResponse, wsi, (char *) in, len);
+      if (SocketResponse_done(&serverResponse)) {
 
-        if (lws_remaining_packet_payload(wsi) == 0) {
-          printf("\n");
+        char *identifier = NULL;
+        char *status = NULL;
+        char *response = malloc(SocketResponse_size(&serverResponse) + 1);
+        if (!response) {
+          fprintf(stderr, "Error allocating response string\n");
+          return -1;
         }
-        //if there is no status replied, or the message is not
-        //pending, we can exit the program
-        destroy_flag = (!status || strcmp(status, "pending"));
+
+        strcpy(response, SocketResponse_get(&serverResponse));
+        parseResponse(response, SocketResponse_size(&serverResponse), &identifier, NULL, &status, NULL, NULL);
+
+        if (!strcmp(identifier, API_IDENTIFIER)) {
+          //only process responses specific to this program
+          if (!strcmp(status, "pending"))
+            return 0;
+
+          printf("%s\n", SocketResponse_get(&serverResponse));
+
+          //if there is no status replied, or the message is not
+          //pending, we can exit the program
+          destroy_flag = 1;
+          return -1;
+        }
+
+        if (response)
+          free(response);
+        SocketResponse_free(&serverResponse);
       }
-
-    } break;
-    default:
-        break;
     }
+      break;
+    default:
+      break;
+  }
 
-    return 0;
+  return 0;
 }
 
 
 int main(int argc, char *argv[]) {
-    prgmName = basename(argv[0]);
 
-    //No user given arguments provided, print help
-    if (argc < 2) {
-        printHelp();
-        return EXIT_FAILURE;
-    }
+  prgmName = basename(argv[0]);
+
+  //No user given arguments provided, print help
+  if (argc < 2) {
+    printHelp();
+    return EXIT_FAILURE;
+  }
 
   //generate Identifier for filtering responses
   srand(time(NULL));
-    sprintf(API_IDENTIFIER, "mmcom%d", rand());
-    char *port = NULL, *cmd = NULL, *plugin = NULL, *values = NULL;
+  sprintf(API_IDENTIFIER, "mmcom%d", rand());
+  char *port = NULL, *cmd = NULL, *plugin = NULL, *values = NULL;
 
-    //loop through arguments and collect options
-    int c;
-    while ((c = getopt(argc, argv, "hp:c:x:v:")) != -1) {
+  //loop through arguments and collect options
+  int c;
+  while ((c = getopt(argc, argv, "hp:c:x:v:")) != -1) {
 
-        switch (c) {
-        case 'h':
-            printHelp();
-            return EXIT_SUCCESS;
-        case 'p':
-            port = optarg;
-            break;
-        case 'c':
-            cmd = optarg;
-            break;
-        case 'x':
-            plugin = optarg;
-            break;
-        case 'v':
-            values = optarg;
-            break;
-        default:
-            //unsupported arguments
-            fprintf(stderr, "Invalide argument: %c\n", c);
-            return EXIT_FAILURE;
-        }
-    }
-
-    if (cmd == NULL) {
-        fprintf(stderr, "Missing command argument.\n");
+    switch (c) {
+      case 'h':
+        printHelp();
+        return EXIT_SUCCESS;
+      case 'p':
+        port = optarg;
+        break;
+      case 'c':
+        cmd = optarg;
+        break;
+      case 'x':
+        plugin = optarg;
+        break;
+      case 'v':
+        values = optarg;
+        break;
+      default:
+        //unsupported arguments
+        fprintf(stderr, "Invalide argument: %c\n", c);
         return EXIT_FAILURE;
     }
+  }
 
-    lws_set_log_level(0, NULL);
+  if (cmd == NULL) {
+    fprintf(stderr, "Missing command argument.\n");
+    return EXIT_FAILURE;
+  }
 
-    char protoName[] = "STDIN";
+  lws_set_log_level(0, NULL);
 
-    struct lws_context *context = NULL;
-    struct lws_context_creation_info info;
-    struct lws *wsi = NULL;
-    struct lws_protocols protocol;
-    struct lws_client_connect_info i;
+  char protoName[] = "STDIN";
 
-    memset(&info, 0, sizeof info);
-    memset(&i, 0, sizeof i);
+  struct lws_context *context = NULL;
+  struct lws_context_creation_info info;
+  struct lws *wsi = NULL;
+  struct lws_protocols protocol;
+  struct lws_client_connect_info i;
 
-    info.port = CONTEXT_PORT_NO_LISTEN;
-    info.protocols = &protocol;
-    info.gid = -1;
-    info.uid = -1;
+  memset(&info, 0, sizeof info);
+  memset(&i, 0, sizeof i);
 
-    protocol.name  = protoName;
-    protocol.callback = ws_service_callback;
-    protocol.per_session_data_size = sizeof(struct session_data);
-    protocol.rx_buffer_size = 128;
+  info.port = CONTEXT_PORT_NO_LISTEN;
+  info.protocols = &protocol;
+  info.gid = -1;
+  info.uid = -1;
 
-    context = lws_create_context(&info);
+  protocol.name = protoName;
+  protocol.callback = ws_service_callback;
+  protocol.per_session_data_size = sizeof(struct session_data);
+  protocol.rx_buffer_size = 128;
 
-    if (context == NULL)
-        return -1;
+  context = lws_create_context(&info);
 
-    const char *prot;
-    if (lws_parse_uri(server, &prot, &i.address, &i.port, &i.path)) {
-        printf("Client.c: Error parsing uri\n");
-        exit(1);
-    }
+  if (context == NULL)
+    return -1;
 
-    if (port != NULL)
-        i.port = atoi(port);
-    else
-        i.port = DEFAULT_PORT;
+  const char *prot;
+  if (lws_parse_uri(server, &prot, &i.address, &i.port, &i.path)) {
+    printf("Client.c: Error parsing uri\n");
+    exit(1);
+  }
 
-    i.context = context;
-    i.ssl_connection = 0;
-    i.host = i.address;
-    i.origin = i.address;
-    i.ietf_version_or_minus_one = -1;
-    i.protocol = protoName;
+  if (port != NULL)
+    i.port = atoi(port);
+  else
+    i.port = DEFAULT_PORT;
 
-    size_t len = strlen(API_IDENTIFIER) + strlens(cmd) + strlens(plugin) + strlens(values) + 5;
-    COMMAND_BUFFER = calloc(len + 1, sizeof(char));
-    if (!COMMAND_BUFFER) {
-        fprintf(stderr, "Generated command string too long!\n");
-        return EXIT_FAILURE;
-    }
+  i.context = context;
+  i.ssl_connection = 0;
+  i.host = i.address;
+  i.origin = i.address;
+  i.ietf_version_or_minus_one = -1;
+  i.protocol = protoName;
 
-
+  size_t len = strlen(API_IDENTIFIER) + strlens(cmd) + strlens(plugin) + strlens(values) + 5;
+  COMMAND_BUFFER = calloc(len + 1, sizeof(char));
+  if (!COMMAND_BUFFER) {
+    fprintf(stderr, "Generated command string too long!\n");
+    return EXIT_FAILURE;
+  }
 
 
   sprintf(COMMAND_BUFFER, "%s\n", API_IDENTIFIER);
 
 
-    //build command
-    if (cmd != NULL) {
-      strcat(COMMAND_BUFFER, cmd);
-      strcat(COMMAND_BUFFER, "\n");
-    }
-    if (plugin != NULL) {
-      strcat(COMMAND_BUFFER, plugin);
-      strcat(COMMAND_BUFFER, "\n");
-    }
-    if (values != NULL)
-      strcat(COMMAND_BUFFER, values);
+  //build command
+  if (cmd != NULL) {
+    strcat(COMMAND_BUFFER, cmd);
+    strcat(COMMAND_BUFFER, "\n");
+  }
+  if (plugin != NULL) {
+    strcat(COMMAND_BUFFER, plugin);
+    strcat(COMMAND_BUFFER, "\n");
+  }
+  if (values != NULL)
+    strcat(COMMAND_BUFFER, values);
 
+  memset(&serverResponse, 0, sizeof(SocketResponse_t));
 
+  wsi = lws_client_connect_via_info(&i);
+  while (!destroy_flag) {
+    //wait for connection
+    lws_service(context, 50);
+  }
 
-    wsi = lws_client_connect_via_info(&i);
-    while(!destroy_flag) {
-        //wait for connection
-        lws_service(context, 50);
-    }
-
-    lws_context_destroy(context);
-    return 0;
+  lws_context_destroy(context);
+  return 0;
 }
