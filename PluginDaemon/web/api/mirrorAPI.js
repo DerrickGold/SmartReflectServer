@@ -1,7 +1,7 @@
 var MirrorAPI = function(addr) {
 
 	var instance = this;
-	this.doLogging = true;
+	this.doLogging = false;
 	this.stdinSocket = null;
 	this.socketBusy = false;
 	this.apiIdentifier = "mirrorAPI" + Math.random().toString(36);
@@ -163,8 +163,8 @@ var MirrorAPI = function(addr) {
     	if (plugin) str += plugin + "\n";
     	if (data) str += data;
 
-    	console.log("API STRING: \n" + str);
-
+    	if (instance.doLogging)
+	    	console.log("API STRING: \n" + str);
     	instance.stdinSocket.send(str);
     }
 
@@ -206,7 +206,8 @@ var MirrorAPI = function(addr) {
 		instance.stdinSocket = new WebSocket("ws://" + window.location.host, "STDIN");
 
 		instance.stdinSocket.onmessage = function(e) {
-			console.log(e.data);
+			if (instance.doLogging)
+				console.log(e.data);
 			instance.apiResponse(e.data);
 		};
 	};
