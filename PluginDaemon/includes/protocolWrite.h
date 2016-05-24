@@ -7,7 +7,7 @@
 
 #include <libwebsockets.h>
 
-#define NUM_BUFFERED_WRITES 32
+#define NUM_BUFFERED_WRITES 256
 
 typedef struct BufferedWrite_s {
     struct lws *socket;

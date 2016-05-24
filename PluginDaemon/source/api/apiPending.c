@@ -15,7 +15,7 @@
 #include "display.h"
 #include "misc.h"
 
-#define MAX_PENDING_ACTIONS 32
+#define MAX_PENDING_ACTIONS 128
 
 //some actions may require multiple cycles to update
 typedef struct PendingAction_s {
@@ -98,7 +98,7 @@ void APIPending_freeSlot(int slot) {
 
 void APIPending_update(void) {
 
-  //do {
+  do {
 
     char *resp = NULL;
     PendingAction_t *pending = &pendingActions[updateAction];
@@ -141,7 +141,7 @@ void APIPending_update(void) {
     updateAction++;
     updateAction %= MAX_PENDING_ACTIONS;
 
-  //} while (updateAction != lastAction);
+  } while (updateAction != lastAction);
 
 
 }

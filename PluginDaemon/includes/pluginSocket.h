@@ -7,7 +7,7 @@
 
 #include <libwebsockets.h>
 
-#define PLUGIN_RX_BUFFER_SIZE 128
+#define PLUGIN_RX_BUFFER_SIZE 256
 
 #define PLUGIN_SERVER_PROTOCOL "PluginServer"
 
