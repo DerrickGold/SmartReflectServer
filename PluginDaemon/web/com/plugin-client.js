@@ -87,14 +87,15 @@ var PluginClient = function(clientSettings) {
 	this.supplementalActions = {
 		apiResponse: function(data) {
 	        var response = data.split(':');
-	  		var res = response.slice(0, 3);
-	  		res.push(response.slice(3).join(':'))
+	  		var res = response.slice(0, 4);
+	  		res.push(response.slice(4).join(':'))
 
 
-	        var completedAction = res[0],
-	            status = res[1],
-	            plugin = res[2],
-	            payload = res[3];
+	        var idToken = res[0],
+	        	completedAction = res[1],
+	            status = res[2],
+	            plugin = res[3],
+	            payload = res[4];
 
 	        console.log(res);
 
