@@ -18,6 +18,57 @@
 #define PLUGIN_CONF_COMMENT '#'
 #define PLUGIN_CONF_ASSIGN '='
 
+
+static char *skipLeadingWhiteSpace(char *inputLine) {
+
+  while (*inputLine == ' ' || *inputLine == '\t')
+    inputLine++;
+
+  return inputLine;
+}
+
+static char *trimTrailingWhiteSpace(char *inputLine) {
+
+  char *end = inputLine + strlen(inputLine);
+
+  while (*end == '\0' || *end == '\r' || *end == '\n' || *end == '\t')
+    *end-- = '\0';
+
+  return inputLine;
+}
+
+static char *getProperty(char *inputLine, char *output) {
+
+  while (*inputLine != PLUGIN_CONF_ASSIGN && *inputLine != '\0') {
+    //skip any spaces or tabs within the property name
+    if (*inputLine == ' ' || *inputLine == '\t')
+      inputLine++;
+      //and copy the rest
+    else
+      *output++ = *inputLine++;
+  }
+  *output = '\0';
+  return inputLine;
+}
+
+static char *getValue(char *inputLine, char *output) {
+
+  //skip any spaces immediately after the = sign
+  while (*inputLine == ' ' || *inputLine == '\t')
+    inputLine++;
+
+  while (*inputLine != '\n' && *inputLine != '\0') {
+    //ignore optional quotes
+    if (*inputLine == '\"')
+      inputLine++;
+
+    *output++ = *inputLine++;
+  }
+  *output = '\0';
+
+  return inputLine;
+}
+
 /*
 Read plugin config file
 
@@ -58,56 +109,37 @@ int ConfigReader_readConfig(char *filePath, int (*apply)(void *, char *, char *)
     //read next line in the config file
     memset(lineBuf, 0, sizeof(lineBuf));
     char *line = fgets(lineBuf, sizeof(lineBuf), confStream);
-    if (!line) break;
+    if (!line)
+      break;
 
 
     //strip trailing white space
-    while (*line != '\0') line++;
-    line--;
-    while (*line == ' ' || *line == '\r' || *line == '\n') *line-- = '\0';
-
+    line = trimTrailingWhiteSpace(line);
     //line is empty, skip it
-    if (strlen(lineBuf) < 1) continue;
-
-    //reset line pointer to beginning
-    line = lineBuf;
+    if (strlen(line) < 1)
+      continue;
 
     //strip leading white space
-    while (*line == ' ' || *line == '\t') line++;
-    strncpy(lineBuf, line, sizeof(lineBuf));
+    line = skipLeadingWhiteSpace(line);
+    memmove(lineBuf, line, strlen(line));
     line = lineBuf;
 
     //skip line if commented out
-    if (*line == PLUGIN_CONF_COMMENT) continue;
+    if (*line == PLUGIN_CONF_COMMENT)
+      continue;
 
     //otherwise grab the setting
-    char *dest = property;
-    while (*line != PLUGIN_CONF_ASSIGN && *line != '\0') {
-      if (*line == ' ' || *line == '\t') line++;
-      else *dest++ = *line++;
-    }
-    *dest = '\0';
+    line = getProperty(line, property);
 
     //make sure we aren't at the end of the line
-    if (*line == '\0') continue;
+    if (*line == '\0')
+      continue;
+
     //skip equal sign
     line++;
 
     //grab value now
-    char quote = 0;
-    dest = value;
-    while (*line != '\n' && *line != '\0') {
-      if (*line == '\"') {
-        if (!quote) quote = 1;
-        else quote = 0;
-        line++;
-      }
-      if ((*line == ' ' || *line == '\t') && !quote) {
-        line++;
-      }
-      else *dest++ = *line++;
-    }
-    *dest = '\0';
+    line = getValue(line, value);
 
     //set plugin property
     if (apply) apply(data, property, value);
@@ -159,10 +191,7 @@ int ConfigReader_writeConfig(char *outputFile, char *origFile, char *setting, ch
 
 
     //strip trailing white space
-    while (*line != '\0') line++;
-    line--;
-    while (*line == ' ' || *line == '\r' || *line == '\n')
-      *line-- = '\0';
+    line = trimTrailingWhiteSpace(line);
 
     //line is empty, skip it
     if (strlen(lineBuf) < 1) {
@@ -171,12 +200,9 @@ int ConfigReader_writeConfig(char *outputFile, char *origFile, char *setting, ch
       continue;
     }
 
-    //reset line pointer to beginning
-    line = lineBuf;
-
     //strip leading white space
-    while (*line == ' ' || *line == '\t') line++;
-    strncpy(lineBuf, line, sizeof(lineBuf) - 1);
+    line = skipLeadingWhiteSpace(line);
+    memmove(lineBuf, line, strlen(line));
     line = lineBuf;
 
     //skip line if commented out
@@ -187,16 +213,9 @@ int ConfigReader_writeConfig(char *outputFile, char *origFile, char *setting, ch
     }
 
     //otherwise grab the setting
-    char *dest = property;
-    while (*line != PLUGIN_CONF_ASSIGN && *line != '\0') {
-      if (*line == ' ' || *line == '\t') line++;
-      else *dest++ = *line++;
-    }
-    *dest = '\0';
+    line = getProperty(line, property);
 
     //write out the <property> = part
-
-
     //check if we have found the value we wish to change
     if (!foundProperty && !strncmp(property, setting, strlen(setting))) {
       foundProperty = 1;
@@ -220,23 +239,8 @@ int ConfigReader_writeConfig(char *outputFile, char *origFile, char *setting, ch
     line++;
 
     //grab value now
-    char quote = 0;
-    dest = value;
-    while (*line != '\n' && *line != '\0') {
-      if (*line == '\"') {
-        if (!quote) quote = 1;
-        else quote = 0;
-        line++;
-      }
-      if ((*line == ' ' || *line == '\t') && !quote) {
-        line++;
-      }
-      else *dest++ = *line++;
-    }
-    *dest = '\0';
-
+    line = getValue(line, value);
     fprintf(saveStream, "%s\n", value);
-
   }
 
   //if we haven't found the property yet in the config file, its likely a new setting
