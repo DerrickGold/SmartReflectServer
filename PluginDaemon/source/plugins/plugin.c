@@ -107,12 +107,16 @@ static int Plugin_SocketCallback(struct lws *wsi, websocket_callback_type reason
   switch (reason) {
     case LWS_CALLBACK_SERVER_WRITEABLE: {
 
-      if (!proto || !proto->user)
+      if (!proto || !proto->user) {
+        PluginSocket_writeBuffers(wsi);
         return 0;
+      }
 
       Plugin_t *plugin = (Plugin_t *) proto->user;
-      if (!plugin->socketInstance)
+      if (!plugin->socketInstance) {
+        PluginSocket_writeBuffers(wsi);
         return 0;
+      }
 
       PluginSocket_writeBuffers(plugin->socketInstance);
       lws_callback_on_writable(plugin->socketInstance);
@@ -160,12 +164,11 @@ static int Plugin_SocketCallback(struct lws *wsi, websocket_callback_type reason
           PluginCSS_sendAll(plugin);
           return 0;
         }
-        else {
-          //if there is an external client connected specifically for this plugin, send them a response
-          if (plugin->externSocketInstance)
-            PluginSocket_writeToSocket(plugin->externSocketInstance, clientData, clientSize, 0);
-        }
       }
+
+      //if there is an external client connected specifically for this plugin, send them a response
+      if (plugin->externSocketInstance)
+        PluginSocket_writeToSocket(plugin->externSocketInstance, in, len, 0);
     }
       break;
 
@@ -177,6 +180,7 @@ static int Plugin_SocketCallback(struct lws *wsi, websocket_callback_type reason
         //for both situations, unload the plugin frontend
         Plugin_ClientFreeResponse(plugin);
         Plugin_UnloadFrontEnd(plugin);
+        PluginSocket_clearWriteBuffers(plugin->socketInstance);
         plugin->socketInstance = NULL;
       }
       break;
@@ -217,12 +221,16 @@ static int Plugin_ExternalSocketCallback(struct lws *wsi, websocket_callback_typ
   switch (reason) {
     case LWS_CALLBACK_SERVER_WRITEABLE: {
 
-      if (!proto || !proto->user)
+      if (!proto || !proto->user) {
+        PluginSocket_writeBuffers(wsi);
         return 0;
+      }
 
       Plugin_t *plugin = (Plugin_t *) proto->user;
-      if (!plugin->externSocketInstance)
+      if (!plugin->externSocketInstance) {
+        PluginSocket_writeBuffers(wsi);
         return 0;
+      }
 
       PluginSocket_writeBuffers(plugin->externSocketInstance);
       lws_callback_on_writable(plugin->externSocketInstance);
@@ -274,9 +282,9 @@ static int Plugin_ExternalSocketCallback(struct lws *wsi, websocket_callback_typ
     case LWS_CALLBACK_CLOSED: {
       SYSLOG(LOG_INFO, "Plugin_ExternalSocketCallback disconnect[%s]", proto->name);
       Plugin_t *plugin = (Plugin_t *) proto->user;
-      plugin->externSocketInstance = NULL;
+      PluginSocket_clearWriteBuffers(plugin->externSocketInstance);
       SocketResponse_free(&plugin->externResponse);
-
+      plugin->externSocketInstance = NULL;
     }
       break;
 

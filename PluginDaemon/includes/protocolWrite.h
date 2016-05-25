@@ -33,6 +33,8 @@ extern int Protocol_setProtocolCount(ProtocolWrites_t *protowrites, size_t newCo
 
 extern int Protocol_removeProtocol(ProtocolWrites_t *protowrites, unsigned int protocolID);
 
+extern void Protocol_clearQueue(ProtocolWrites_t *protowrites, unsigned int protocolID);
+
 extern void Protocol_destroyQueues(ProtocolWrites_t *protowrites);
 
 extern void Protocol_initQueue(ProtocolWrites_t *protowrites, unsigned int protocolID);

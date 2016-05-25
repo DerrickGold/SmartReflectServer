@@ -7,7 +7,7 @@
 
 #include <libwebsockets.h>
 
-#define PLUGIN_RX_BUFFER_SIZE 256
+#define PLUGIN_RX_BUFFER_SIZE 4096
 
 #define PLUGIN_SERVER_PROTOCOL "PluginServer"
 
@@ -33,6 +33,8 @@ extern void PluginSocket_Cleanup(void);
 extern int PluginSocket_writeToSocket(struct lws *wsi_in, char *str, int str_size_in, char noHeader);
 
 extern void PluginSocket_writeBuffers(struct lws *wsi);
+
+extern void PluginSocket_clearWriteBuffers(struct lws *wsi);
 
 extern char PluginSocket_ServeHtmlFile(char *htmlPath);
 

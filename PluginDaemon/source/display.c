@@ -221,6 +221,7 @@ static int _displayCallback(struct lws *wsi, enum lws_callback_reasons reason, v
 
     case LWS_CALLBACK_CLOSED:
       Display_ClearDisplayResponse();
+      PluginSocket_clearWriteBuffers(displaySocketInstance);
       displaySocketInstance = NULL;
       _displayConnected = 0;
       break;

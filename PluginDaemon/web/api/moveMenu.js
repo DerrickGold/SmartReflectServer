@@ -17,6 +17,9 @@ var MoveMenu = function(mirrorWidth, mirrorHeight, moveCB, cancelCB, saveCB) {
      }
 
     this.initMoveMenu = function() {
+        var touchArea = null;
+        var posMarker = $("#posMarker");
+
         var saveButton = $('.RepositionMenu').find('.btn-success');
         $(saveButton).click(function() {
             //close mirror gui
@@ -43,7 +46,6 @@ var MoveMenu = function(mirrorWidth, mirrorHeight, moveCB, cancelCB, saveCB) {
             var ypos = instance.scalePos(e.offsetY, tA.outerHeight());
             //parseInt((e.offsetY/ tA.outerHeight()) * 100);
 
-            var posMarker = $("#posMarker");
             posMarker.css("left", xpos);
             posMarker.css("top", ypos);
 
@@ -63,38 +65,35 @@ var MoveMenu = function(mirrorWidth, mirrorHeight, moveCB, cancelCB, saveCB) {
             e.stopPropagation();
             return false;
         });
+
         $('#touchArea').off('touchmove').on('touchmove', function(e) {
             e.preventDefault();
             e.stopPropagation();
 
-            var area = $(this)[0];
+            if (!touchArea)
+                touchArea = $(this)[0];
 
             var touchX = e.originalEvent.touches[0].clientX,
                 touchY = e.originalEvent.touches[0].clientY;
 
-            console.log(e);
-
-            var xpos = touchX - area.offsetLeft,
-                ypos = touchY - area.offsetTop,
-                width = area.offsetWidth,
-                height = area.offsetHeight;
+            var xpos = touchX - touchArea.offsetLeft,
+                ypos = touchY - touchArea.offsetTop,
+                width = touchArea.offsetWidth,
+                height = touchArea.offsetHeight;
 
             var xpos = instance.scalePos(xpos, width);
             var ypos = instance.scalePos(ypos, height);
 
-            var posMarker = $("#posMarker");
-            posMarker.css("left", xpos);
-            posMarker.css("top", ypos);
 
             if (instance.lastSentMovement == null) {
+                posMarker.css("left", xpos);
+                posMarker.css("top", ypos);
 
                 instance.lastSentMovement = setTimeout(function(){
                     if (instance.doLogging)
                         console.log(e);
 
-
                     instance.lastSentMovement = null;
-
                 }, instance.comPeriod);
 
                 if (moveCB) moveCB(xpos, ypos);

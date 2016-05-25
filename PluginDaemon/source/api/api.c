@@ -610,8 +610,6 @@ static int API_Callback(struct lws *wsi, websocket_callback_type reason, void *u
       if (!len)
         return 0;
 
-
-
       SocketResponse_build(&inputResponse, wsi, (char *) in, len);
       if (SocketResponse_done(&inputResponse)) {
 
@@ -629,6 +627,7 @@ static int API_Callback(struct lws *wsi, websocket_callback_type reason, void *u
 
     case LWS_CALLBACK_CLOSED:
       SYSLOG(LOG_INFO, "InputReader disconnect[%s]", proto->name);
+      PluginSocket_clearWriteBuffers(wsi);
       SocketResponse_free(&inputResponse);
       break;
 

@@ -187,7 +187,7 @@ int PluginSocket_AddProtocol(struct lws_protocols *proto) {
   _protocols[_lastProtocol].name = proto->name;
   _protocols[_lastProtocol].callback = proto->callback;
   _protocols[_lastProtocol].user = proto->user;
-  _protocols[_lastProtocol].rx_buffer_size = 0;
+  _protocols[_lastProtocol].rx_buffer_size = proto->rx_buffer_size;
   _protocols[_lastProtocol].per_session_data_size = proto->per_session_data_size;
   _protocols[_lastProtocol].id = _lastProtocol;
 
@@ -288,6 +288,16 @@ void PluginSocket_writeBuffers(struct lws *wsi) {
   Protocol_processQueue(&protocolWriteQueues, proto->id);
 }
 
+void PluginSocket_clearWriteBuffers(struct lws *wsi) {
+
+  struct lws_protocols *proto = (struct lws_protocols *) lws_get_protocol(wsi);
+  if (!proto) {
+    SYSLOG(LOG_ERR, "ERROR: No protocol to write!");
+    return;
+  }
+
+  Protocol_clearQueue(&protocolWriteQueues, proto->id);
+}
 /*
  * Creates a context instance for a socket server
  * on a specified port number.

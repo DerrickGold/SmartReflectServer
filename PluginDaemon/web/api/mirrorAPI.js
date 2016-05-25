@@ -3,7 +3,6 @@ var MirrorAPI = function(addr) {
 	var instance = this;
 	this.doLogging = false;
 	this.stdinSocket = null;
-	this.socketBusy = false;
 	this.apiIdentifier = "mirrorAPI" + Math.random().toString(36);
 
 
@@ -18,7 +17,10 @@ var MirrorAPI = function(addr) {
 		mirrorsize: 0,
 		savecss: 0,
 		display: 0,
-
+		getopt: 0,
+		setopt: 0,
+		getdir: 0,
+		jscmd: 0
 	};
 
 	//set a callback function for a particular api response
