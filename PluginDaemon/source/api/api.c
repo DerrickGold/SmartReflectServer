@@ -26,10 +26,10 @@
 
 
 const char *API_STATUS_STRING[] = {
-        "success",
-        "fail",
-        "pending",
-        "busy"
+     [API_STATUS_SUCCESS] = "success",
+     [API_STATUS_FAIL] = "fail",
+     [API_STATUS_PENDING] = "pending",
+     [API_STATUS_BUSY] = "busy"
 };
 
 static int _shutdown = 0;
@@ -37,21 +37,21 @@ static int _shutdown = 0;
 static SocketResponse_t inputResponse;
 
 
-APICommand_t allActions[ACTION_COUNT] = {
-        {LIST_CMDS,    "commands",   NONE},
+APICommand_t allActions[API_ACTION_COUNT] = {
+        [API_LIST_CMDS] = {"commands", NONE},
         /*
          * disable <pluginName>
          * Unloads a plugin from the frontend, unschedules the plugin
          * from updating, and stops any child processes of plugin.
          */
-        {DISABLE,      "disable",    NEED_PLUGIN},
+        [API_DISABLE] = {"disable", NEED_PLUGIN},
 
         /*
          * enable <pluginName>
          * Loads a plugin into the frontend and if applicable, enables
          * it in the main scheduler for providing display updates.
          */
-        {ENABLE,       "enable",     NEED_PLUGIN},
+        [API_ENABLE] = {"enable", NEED_PLUGIN},
 
         /*
          * reload <pluginName>
@@ -60,20 +60,20 @@ APICommand_t allActions[ACTION_COUNT] = {
          * then reloads it back into the frontend and scheduler
          * with the newly loaded configuration setup.
          */
-        {RELOAD,       "reload",     NEED_PLUGIN},
+        [API_RELOAD] = {"reload", NEED_PLUGIN},
 
         /*
          * plugins
          * List all plugins currently loaded in the PluginDaemon.
          */
-        {PLUGINS,      "list",       NONE},
+        [API_PLUGINS] = {"list", NONE},
 
         /*
          * getdir <pluginName>
          * Returns the filepath to the directory in which the
          * specified plugin's configuration file resides.
          */
-        {PLUG_DIR,     "getdir",     NEED_PLUGIN},
+        [API_PLUG_DIR] = {"getdir", NEED_PLUGIN},
 
         /*
          * rmplug <pluginName>
@@ -81,27 +81,27 @@ APICommand_t allActions[ACTION_COUNT] = {
          * After this is called, the PluginDaemon will be completely
          * unaware of this plugins existence.
          */
-        {RM_PLUG,      "rmplug",     NEED_PLUGIN},
+        [API_RM_PLUG] = {"rmplug",     NEED_PLUGIN},
 
         /*
          * mirrorsize
          * Returns the frontend display dimensions as a string
          * formatted as 'widthxheight'.
          */
-        {MIR_SIZE,     "mirrorsize", NONE},
+        [API_MIR_SIZE] = {"mirrorsize", NONE},
 
         /*
          * stop
          * Stops the plugin daemon for a clean shutdown,
          */
-        {STOP,         "stop",       NONE},
+        [API_STOP] = {"stop", NONE},
 
         /*
          * setcss <plugin> <cssAttr=value;attr=value....>
          * Set a CSS value for a plugin's frontend
          * display.
          */
-        {SET_CSS,      "setcss",     NEED_PLUGIN | NEED_VALUES},
+        [API_SET_CSS] = {"setcss", NEED_PLUGIN | NEED_VALUES},
 
         /*
          * getcss <plugin> <attr1, attr2,....>
@@ -110,17 +110,17 @@ APICommand_t allActions[ACTION_COUNT] = {
          * be returned. Multiple CSS properties can be queried
          * for and will be delimited with a newline character.
          */
-        {GET_CSS,      "getcss",     NEED_PLUGIN | NEED_VALUES},
+        [API_GET_CSS] = {"getcss", NEED_PLUGIN | NEED_VALUES},
 
 
-        {DUMP_CSS,     "savecss",    NEED_PLUGIN},
+        [API_DUMP_CSS] = {"savecss", NEED_PLUGIN},
 
         /*
          * getstate <plugin>
          * Returns whether a plugin is enabled and running
          * or not.
          */
-        {GET_STATE,    "getstate",   NEED_PLUGIN},
+        [API_GET_STATE] = {"getstate", NEED_PLUGIN},
 
         /*
          * jscmd <plugin> {\"fn\":\"<FUNCTION>\",\"args\":<ARGS>}
@@ -130,35 +130,35 @@ APICommand_t allActions[ACTION_COUNT] = {
          * being the name of the function to execute, and 'args' property
          * being the arguments to provide to that function call.
          */
-        {JS_PLUG_CMD,  "jscmd",      NEED_PLUGIN | NEED_VALUES},
+        [API_JS_PLUG_CMD] = {"jscmd", NEED_PLUGIN | NEED_VALUES},
 
         /*
          * display
          * Returns whether or not a display is connected to the daemon.
          */
-        {DISP_CONNECT, "display",    NONE},
+        [API_DISP_CONNECT] = {"display", NONE},
 
         /*
          * getcfg <plugin> <config_file_setting>
          * Returns a value in a plugins config file based
          * on the queried setting.
          */
-        {GET_CONFIG,   "getopt",     NEED_PLUGIN | NEED_VALUES},
+        [API_GET_CONFIG] = {"getopt", NEED_PLUGIN | NEED_VALUES},
 
         /*
          * setcfg <plugin> <config_file_setting>=<new_value>
          * Write a new entry or overwrite an existing entry in a plugin's
          * config file.
          */
-        {SET_CONFIG,   "setopt",     NEED_PLUGIN | NEED_VALUES}
+        [API_SET_CONFIG] = {"setopt", NEED_PLUGIN | NEED_VALUES}
 
 };
 
 //Returns an APIAction_e value for a given search string
 static APIAction_e findAPICall(char *search) {
 
-  APIAction_e action = NO_ACTION;
-  for (int i = 0; i < ACTION_COUNT; i++) {
+  APIAction_e action = API_NO_ACTION;
+  for (int i = 0; i < API_ACTION_COUNT; i++) {
     if (strncmp(allActions[i].name, search, strlen(allActions[i].name)) == 0) {
       action = i;
       break;
@@ -231,14 +231,14 @@ static APIStatus_e api_waitForDaemonResponse(APIResponse_t *response, char *iden
 
   if (!Display_IsDisplayConnected()) {
     APIResponse_concat(response, "No display connected.", -1);
-    return FAIL;
+    return API_STATUS_FAIL;
   }
 
-  APIStatus_e rtrn = PENDING;
+  APIStatus_e rtrn = API_STATUS_PENDING;
   if (!APIPending_addAction(APIPENDING_DISPLAY, identifier, action, plugin, socket)) {
     Display_ClearDisplayResponse();
   } else {
-    rtrn = FAIL;
+    rtrn = API_STATUS_FAIL;
     APIResponse_concat(response, "Failed to add pending request.", -1);
   }
 
@@ -255,15 +255,15 @@ static APIStatus_e api_waitForPluginResponse(APIResponse_t *response, char *iden
 
   if (!Plugin_isConnected(plugin)) {
     APIResponse_concat(response, "Plugin not connected to frontend", -1);
-    return FAIL;
+    return API_STATUS_FAIL;
   }
 
-  APIStatus_e rtrn = PENDING;
+  APIStatus_e rtrn = API_STATUS_PENDING;
   if (!APIPending_addAction(APIPENDING_PLUGIN, identifier, action, plugin, socket)) {
     //Plugin_FreeFrontEndResponse(plugin);
     Plugin_ClientFreeResponse(plugin);
   } else {
-    rtrn = FAIL;
+    rtrn = API_STATUS_FAIL;
     APIResponse_concat(response, "Failed to add pending request.", -1);
   }
 
@@ -322,7 +322,7 @@ static int api_getPluginSetting(APIResponse_t *response, Plugin_t *plugin, char 
 
 static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action, Plugin_t *plugin, char *value) {
 
-  APIStatus_e status = SUCCESS;
+  APIStatus_e status = API_STATUS_SUCCESS;
 
   APIResponse_t *immResponse = APIResponse_new();
   if (!immResponse)
@@ -330,47 +330,47 @@ static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action,
 
   if (allActions[action].flag & NEED_PLUGIN && plugin == NULL) {
     SYSLOG(LOG_INFO, "Action requires a plugin to be specified");
-    status = FAIL;
-    //PluginSocket_writeToSocket(wsi, API_FAIL"Action requires a plugin to be specified", -1);
+    status = API_STATUS_FAIL;
+    //PluginSocket_writeToSocket(wsi, API_API_STATUS_FAIL"Action requires a plugin to be specified", -1);
     //return;
     APIResponse_concat(immResponse, "Action requires a plugin to be specified.", -1);
   }
 
   if (allActions[action].flag & NEED_VALUES && value == NULL) {
     SYSLOG(LOG_INFO, "Action requires values to be provided for plugin");
-    status = FAIL;
+    status = API_STATUS_FAIL;
     APIResponse_concat(immResponse, "Action requires values to be provided for plugin.", -1);
   }
 
-  if (status != SUCCESS)
+  if (status != API_STATUS_SUCCESS)
     goto _response;
 
   switch (action) {
-    case NO_ACTION:
+    case API_NO_ACTION:
       //PluginSocket_writeToSocket(wsi, "Specified action does not exist", -1);
       //return;
-      status = FAIL;
+      status = API_STATUS_FAIL;
       APIResponse_concat(immResponse, "Specified action does not exist", -1);
       //syslog(LOG_INFO, "Specified action does not exist.");
       break;
-    case LIST_CMDS: {
+    case API_LIST_CMDS: {
 
       int i = 0;
-      for (i = 0; i < ACTION_COUNT; i++) {
+      for (i = 0; i < API_ACTION_COUNT; i++) {
         APIResponse_concat(immResponse, allActions[i].name, -1);
         APIResponse_concat(immResponse, API_PLUGLIST_DELIM, 1);
       }
     }
       break;
-    case DISABLE:
+    case API_DISABLE:
       if (api_PluginDisable(plugin, NULL))
-        status = FAIL;
+        status = API_STATUS_FAIL;
       break;
-    case ENABLE:
+    case API_ENABLE:
       if (api_PluginEnable(plugin))
-        status = FAIL;
+        status = API_STATUS_FAIL;
       break;
-    case RELOAD: {
+    case API_RELOAD: {
       //reload plugin and reload plugin
       //syslog(LOG_INFO, "Reloaded plugin");
       int status = Plugin_isEnabled(plugin);
@@ -382,17 +382,17 @@ static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action,
 
     }
       break;
-    case PLUGINS:
+    case API_PLUGINS:
       //list plugins to fifo file
       //builds up the payload to send back
       PluginList_ForEach(_pluginList, immResponse);
       break;
-    case PLUG_DIR:
+    case API_PLUG_DIR:
       //get plugin's data directory
       APIResponse_concat(immResponse, Plugin_GetDirectory(plugin), -1);
       SYSLOG(LOG_INFO, "Got plugin directory");
       break;
-    case RM_PLUG: {
+    case API_RM_PLUG: {
       //if plugin is currently running, unload it first
       if (Plugin_isEnabled(plugin))
         api_PluginDisable(plugin, NULL);
@@ -406,24 +406,24 @@ static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action,
       SYSLOG(LOG_INFO, "Unloaded plugin");
     }
       break;
-    case MIR_SIZE: {
+    case API_MIR_SIZE: {
       if (Display_GetDisplaySize())
-        status = FAIL;
+        status = API_STATUS_FAIL;
 
       status = api_waitForDaemonResponse(immResponse, identifier, action, plugin, wsi);
     }
       break;
-    case STOP:
+    case API_STOP:
       _shutdown = 1;
       APIResponse_concat(immResponse, "Shutting down daemon...", -1);
       SYSLOG(LOG_INFO, "Stopped mirror");
       break;
-    case SET_CSS:
+    case API_SET_CSS:
       SYSLOG(LOG_INFO, "Set plugin CSS");
       Plugin_SendMsg(plugin, "setcss", value);
       PluginCSS_store(plugin, value);
       break;
-    case GET_CSS:
+    case API_GET_CSS:
       //modify the css of the specified plugin and regenerate index
       //modify this css file with the values
       SYSLOG(LOG_INFO, "Modified plugin css");
@@ -431,19 +431,19 @@ static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action,
       status = api_waitForPluginResponse(immResponse, identifier, action, plugin, wsi);
       break;
 
-    case DUMP_CSS:
+    case API_DUMP_CSS:
       SYSLOG(LOG_INFO, "Saving plugin's css");
       PluginCSS_dump(plugin);
 
       break;
-    case GET_STATE: {
+    case API_GET_STATE: {
       SYSLOG(LOG_INFO, "Getting plugin status.");
       if (!Plugin_isEnabled(plugin))
-        status = FAIL;
+        status = API_STATUS_FAIL;
     }
       break;
 
-    case JS_PLUG_CMD: {
+    case API_JS_PLUG_CMD: {
       Plugin_SendMsg(plugin, "jsPluginCmd", value);
       status = api_waitForPluginResponse(immResponse, identifier, action, plugin, wsi);
       //WAIT_FOR_RESPONSE;
@@ -451,19 +451,19 @@ static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action,
       break;
 
       //check if there is a display connected
-    case DISP_CONNECT:
+    case API_DISP_CONNECT:
       if (!Display_IsDisplayConnected())
-        status = FAIL;
+        status = API_STATUS_FAIL;
       break;
 
-    case GET_CONFIG:
+    case API_GET_CONFIG:
       if (api_getPluginSetting(immResponse, plugin, value))
-        status = FAIL;
+        status = API_STATUS_FAIL;
       break;
 
-    case SET_CONFIG:
+    case API_SET_CONFIG:
       if (api_writePluginSetting(immResponse, plugin, value))
-        status = FAIL;
+        status = API_STATUS_FAIL;
 
       break;
 
@@ -558,7 +558,7 @@ static void parseInput(char *input, size_t inputLen, struct lws *wsi) {
   APIAction_e action = findAPICall(cmd);
 
   //if all input has been consumed, try the action
-  if (parsed || action == NO_ACTION)
+  if (parsed || action == API_NO_ACTION)
     goto _doAction;
 
   SYSLOG(LOG_INFO, "Action Num: %d", action);

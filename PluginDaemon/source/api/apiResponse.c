@@ -74,7 +74,7 @@ int APIResponse_send(APIResponse_t *response, struct lws *wsi, char *identifier,
 
   char *actionStr = EMPTY_STR, *statusStr = (char *) API_STATUS_STRING[status];
 
-  if (action != NO_ACTION)
+  if (action != API_NO_ACTION)
     actionStr = (char *) allActions[action].name;
 
   char *apiToken = EMPTY_STR;

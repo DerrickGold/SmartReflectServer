@@ -37,7 +37,7 @@ void APIPending_init(void) {
   memset(pendingActions, 0, sizeof(pendingActions));
   int i = 0;
   for (i = 0; i < MAX_PENDING_ACTIONS; i++)
-    pendingActions[i].action = NO_ACTION;
+    pendingActions[i].action = API_NO_ACTION;
 
 }
 
@@ -53,7 +53,7 @@ int APIPending_addAction(APIPendingType_e type, char *id, APIAction_e action, Pl
 
   int slot = APIPending_getFreeSlot();
 
-  if (pendingActions[slot].action != NO_ACTION) {
+  if (pendingActions[slot].action != API_NO_ACTION) {
     APIPending_freeSlot(slot);
   }
 
@@ -92,7 +92,7 @@ void APIPending_freeSlot(int slot) {
   }
 
   memset(&pendingActions[slot], 0, sizeof(PendingAction_t));
-  pendingActions[slot].action = NO_ACTION;
+  pendingActions[slot].action = API_NO_ACTION;
   SYSLOG(LOG_INFO, "APIPending: Clearing processed response");
 }
 
@@ -103,7 +103,7 @@ void APIPending_update(void) {
     char *resp = NULL;
     PendingAction_t *pending = &pendingActions[updateAction];
 
-    if (pending->action == NO_ACTION)
+    if (pending->action == API_NO_ACTION)
       goto update;
 
 
@@ -132,7 +132,7 @@ void APIPending_update(void) {
     }
 
     APIResponse_send(pending->response, pending->socket, pending->identifier, Plugin_GetName(pending->plugin),
-                     pending->action, SUCCESS);
+                     pending->action, API_STATUS_SUCCESS);
     //action was successful, clear it
     APIPending_freeSlot(updateAction);
 

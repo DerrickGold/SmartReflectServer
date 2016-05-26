@@ -4,40 +4,40 @@
 #include "libwebsockets.h"
 
 typedef enum {
-    SUCCESS = 0,
-    FAIL,
-    PENDING,
-    BUSY,
+    API_STATUS_SUCCESS = 0,
+    API_STATUS_FAIL,
+    API_STATUS_PENDING,
+    API_STATUS_BUSY,
 } APIStatus_e;
 
 extern const char *API_STATUS_STRING[];
 
 
 typedef enum {
-    NO_ACTION = -1,
-    LIST_CMDS,
-    DISABLE,
-    ENABLE,
-    RELOAD,
-    PLUGINS,
-    PLUG_DIR,
-    RM_PLUG,
-    MIR_SIZE,
-    STOP,
-    SET_CSS,
-    GET_CSS,
-    DUMP_CSS,
-    GET_STATE,
-    JS_PLUG_CMD,
-    DISP_CONNECT,
-    GET_CONFIG,
-    SET_CONFIG,
-    ACTION_COUNT
+    API_NO_ACTION = -1,
+    API_LIST_CMDS,
+    API_DISABLE,
+    API_ENABLE,
+    API_RELOAD,
+    API_PLUGINS,
+    API_PLUG_DIR,
+    API_RM_PLUG,
+    API_MIR_SIZE,
+    API_STOP,
+    API_SET_CSS,
+    API_GET_CSS,
+    API_DUMP_CSS,
+    API_GET_STATE,
+    API_JS_PLUG_CMD,
+    API_DISP_CONNECT,
+    API_GET_CONFIG,
+    API_SET_CONFIG,
+    API_INSTALL,
+    API_ACTION_COUNT
 } APIAction_e;
 
 
 typedef struct API_Command_s {
-    APIAction_e actionID;
     char *name;
     int flag;
 } APICommand_t;
@@ -48,7 +48,7 @@ typedef enum {
     NEED_VALUES = (1 << 1)
 } APIActionFlags_e;
 
-extern APICommand_t allActions[ACTION_COUNT];
+extern APICommand_t allActions[API_ACTION_COUNT];
 
 extern void API_Init(void);
 
