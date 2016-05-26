@@ -14,10 +14,11 @@
 
 void _clearQueue(WriteQueue_t *queue) {
 
-  BufferedWrite_t *buffers = queue->writes;
+
   size_t i = 0;
 
   for (i = 0; i < NUM_BUFFERED_WRITES; i++) {
+    BufferedWrite_t *buffers = &queue->writes[i];
     if (buffers->msg)
       free(buffers->msg);
 
@@ -28,6 +29,27 @@ void _clearQueue(WriteQueue_t *queue) {
 
   queue->lastWritten = 0;
   queue->lastBuffered = 0;
+}
+
+void _clearDeadQueue(WriteQueue_t *queue, struct lws *cur) {
+
+
+  size_t i = 0;
+
+  for (i = 0; i < NUM_BUFFERED_WRITES; i++) {
+    BufferedWrite_t *buffers = &queue->writes[i];
+
+    //only clearing closed queues
+    if (!buffers->socket)
+      continue;
+
+    if (buffers->msg)
+      free(buffers->msg);
+
+    buffers->msg = NULL;
+    buffers->socket = NULL;
+    buffers->len = 0;
+  }
 }
 
 void Protocol_addWriteToQueue(ProtocolWrites_t * protowrites, struct lws *socket, void *msg, size_t len) {
@@ -45,7 +67,7 @@ void Protocol_addWriteToQueue(ProtocolWrites_t * protowrites, struct lws *socket
   WriteQueue_t *curBuffer = &protowrites->buffer[proto->id];
   BufferedWrite_t *curWrite = &curBuffer->writes[curBuffer->lastBuffered];
 
-  if (curWrite->socket) {
+  if (curWrite->msg) {
     SYSLOG(LOG_ERR, "WRITING OVER BUFFERED MSG");
     free(curWrite->msg);
   }
@@ -116,6 +138,14 @@ void Protocol_clearQueue(ProtocolWrites_t *protowrites, unsigned int protocolID)
     return;
 
   _clearQueue(&protowrites->buffer[protocolID]);
+}
+
+void Protocol_clearDeadQueue(ProtocolWrites_t *protowrites, unsigned int protocolID, struct lws *socket) {
+
+  if (!protowrites->buffer || protocolID >= protowrites->bufferCount)
+    return;
+
+  _clearDeadQueue(&protowrites->buffer[protocolID], socket);
 }
 
 void Protocol_destroyQueues(ProtocolWrites_t *protowrites) {

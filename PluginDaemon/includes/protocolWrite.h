@@ -35,6 +35,8 @@ extern int Protocol_removeProtocol(ProtocolWrites_t *protowrites, unsigned int p
 
 extern void Protocol_clearQueue(ProtocolWrites_t *protowrites, unsigned int protocolID);
 
+extern void Protocol_clearDeadQueue(ProtocolWrites_t *protowrites, unsigned int protocolID, struct lws *socket);
+
 extern void Protocol_destroyQueues(ProtocolWrites_t *protowrites);
 
 extern void Protocol_initQueue(ProtocolWrites_t *protowrites, unsigned int protocolID);

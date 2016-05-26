@@ -178,8 +178,11 @@ var MirrorAPI = function(addr) {
   		if (instance.doLogging)
         	console.log(res);
 
-        var apiIdentifier = res[0],
-        	completedAction = res[1],
+        //make sure this api call is for this client
+        if (res[0] !== instance.apiIdentifier)
+        	return;
+
+        var	completedAction = res[1],
             status = res[2],
             plugin = res[3],
             payload = instance.transformApiResponsePayload[completedAction](res[4]);

@@ -34,7 +34,7 @@ extern int PluginSocket_writeToSocket(struct lws *wsi_in, char *str, int str_siz
 
 extern void PluginSocket_writeBuffers(struct lws *wsi);
 
-extern void PluginSocket_clearWriteBuffers(struct lws *wsi);
+extern void PluginSocket_clearWriteBuffers(struct lws *wsi, char onlyDead);
 
 extern char PluginSocket_ServeHtmlFile(char *htmlPath);
 

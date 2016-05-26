@@ -288,7 +288,7 @@ void PluginSocket_writeBuffers(struct lws *wsi) {
   Protocol_processQueue(&protocolWriteQueues, proto->id);
 }
 
-void PluginSocket_clearWriteBuffers(struct lws *wsi) {
+void PluginSocket_clearWriteBuffers(struct lws *wsi, char onlyDead) {
 
   struct lws_protocols *proto = (struct lws_protocols *) lws_get_protocol(wsi);
   if (!proto) {
@@ -296,7 +296,10 @@ void PluginSocket_clearWriteBuffers(struct lws *wsi) {
     return;
   }
 
-  Protocol_clearQueue(&protocolWriteQueues, proto->id);
+  if (!onlyDead)
+    Protocol_clearQueue(&protocolWriteQueues, proto->id);
+  else
+    Protocol_clearDeadQueue(&protocolWriteQueues, proto->id, wsi);
 }
 /*
  * Creates a context instance for a socket server
