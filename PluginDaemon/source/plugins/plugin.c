@@ -20,6 +20,7 @@
 #include "pluginComLib.h"
 #include "misc.h"
 #include "api.h"
+#include "display.h"
 
 #define CSS_HASH_INIT_SIZE 73
 
@@ -48,6 +49,10 @@ static size_t sstrlen(char *string) {
 
   return strlen(string);
 }
+
+
+
+
 
 //helper function for instantiating a plugin object
 Plugin_t *Plugin_Create(void) {

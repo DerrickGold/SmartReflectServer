@@ -8,8 +8,8 @@
 
 #include <dirent.h>
 
-//#define SYSLOG(logtype, fmt, ...) syslog((logtype), fmt, ##__VA_ARGS__)
-#define SYSLOG(logtype, fmt, ...) do {} while (0)
+#define SYSLOG(logtype, fmt, ...) syslog((logtype), fmt, ##__VA_ARGS__)
+//#define SYSLOG(logtype, fmt, ...) do {} while (0)
 
 extern int DirectoryAction(char *path, int (*forEach)(char *, struct dirent *, void *), void *data);
 

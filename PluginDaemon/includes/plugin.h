@@ -109,6 +109,7 @@ typedef enum {
     PLUGIN_FLAG_INBG = (1 << 8),
 } PluginFlags_e;
 
+extern int Plugin_Load(char *directory);
 
 extern Plugin_t *Plugin_Create(void);
 

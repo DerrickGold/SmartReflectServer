@@ -12,6 +12,8 @@ extern int Display_Generate(int portNum, const char *comFolder, const char *cssF
 
 extern int Display_IsDisplayConnected(void);
 
+extern int Display_Reload(int waitSeconds);
+
 extern int Display_SendFrontendMsg(char *msg, size_t size);
 
 extern void Display_ClearDisplayResponse(void);

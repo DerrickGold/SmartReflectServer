@@ -111,6 +111,7 @@ int Protocol_setProtocolCount(ProtocolWrites_t *protowrites, size_t newCount) {
     SYSLOG(LOG_INFO, "Protocol_addBuffer: Failed to resize old buffers");
     return -1;
   }
+  newCount++;
 
   protowrites->buffer = newBuffer;
   protowrites->bufferCount = newCount;
@@ -165,8 +166,10 @@ void Protocol_destroyQueues(ProtocolWrites_t *protowrites) {
 
 void Protocol_initQueue(ProtocolWrites_t *protowrites, unsigned int protocolID) {
 
-  if (protocolID < 0 || protocolID > protowrites->bufferCount)
+  if (protocolID < 0 || protocolID >= protowrites->bufferCount) {
+    SYSLOG(LOG_ERR, "Protocol_initQueue: initializing queue out of bounds");
     return;
+  }
 
   memset(&protowrites->buffer[protocolID], 0, sizeof(WriteQueue_t));
 }

@@ -346,8 +346,11 @@ int main(int argc, char *argv[]) {
   }
   if (plugin != NULL) {
     strcat(COMMAND_BUFFER, plugin);
-    strcat(COMMAND_BUFFER, "\n");
   }
+
+  if (plugin || values)
+    strcat(COMMAND_BUFFER, "\n");
+
   if (values != NULL)
     strcat(COMMAND_BUFFER, values);
 

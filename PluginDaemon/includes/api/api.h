@@ -33,6 +33,7 @@ typedef enum {
     API_GET_CONFIG,
     API_SET_CONFIG,
     API_INSTALL,
+    API_REBOOT,
     API_ACTION_COUNT
 } APIAction_e;
 
@@ -50,9 +51,11 @@ typedef enum {
 
 extern APICommand_t allActions[API_ACTION_COUNT];
 
-extern void API_Init(void);
+extern void API_Init(char *pluginDir);
 
 extern int API_Shutdown(void);
+
+extern int API_ClearShutDown(void);
 
 extern void API_Update(void);
 

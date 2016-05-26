@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <dirent.h>
+#include <syslog.h>
 #include "misc.h"
 
 
@@ -25,7 +26,10 @@ int DirectoryAction(char *path, int (*forEach)(char *, struct dirent *, void *d)
   struct dirent *dirInfo = NULL;
   DIR *directory = opendir(path);
 
-  if (!directory || !forEach) return -1;
+  if (!directory || !forEach) {
+    SYSLOG(LOG_ERR, "DirectoryAction: error opening: %s", path);
+    return -1;
+  }
 
   char filepath[PATH_MAX];
   while ((dirInfo = readdir(directory)) != NULL) {

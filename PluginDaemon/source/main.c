@@ -16,6 +16,7 @@
 #include "plugin.h"
 #include "display.h"
 #include "api.h"
+#include "pluginLoader.h"
 
 //one second in nanoseconds
 #define SECOND 1000000000
@@ -40,7 +41,10 @@
  "\t\t-p: Set what port to use for the server. Default is 5000\n" \
  "\t\t-s: Set number of cycles per second to run the server at. Default is 100.\n"
 
+
+int MainProgramLoop_Reboot = 0;
 static char *prgmName = NULL;
+
 
 static void mainDaemon() {
 
@@ -91,101 +95,6 @@ static void mainDaemon() {
 
 }
 
-/*
- * (PluginList_forEach) callback function.
- *
- * Adds a plugin's protocol to the websocket server, and
- * starts the plugin's schedule if applicable.
- */
-static int _startPluginConnection(void *plug, void *data) {
-
-  //First add the plugins protocol to the socket server instance.
-  Plugin_t *plugin = (Plugin_t *) plug;
-
-  //Create the interface between this daemon and the plugin's web interface
-  struct lws_protocols proto = Plugin_MakeProtocol(plugin);
-  PluginSocket_AddProtocol(&proto);
-
-  //Add a handler for external applications to interact with plugins
-  struct lws_protocols extProto = Plugin_MakeExternalProtocol(plugin);
-  PluginSocket_AddProtocol(&extProto);
-
-  //Next, start the plugin schedule so it can search/wait for a socket connection
-  if (!Plugin_StartSchedule(plugin))
-    SYSLOG(LOG_INFO, "_startPluginSchedule: starting timer for:%s", Plugin_GetName(plugin));
-  else
-    return -1;
-
-  return 0;
-}
-
-static int _initPluginFrontendCom(void *plug, void *data) {
-
-  Plugin_t *plugin = (Plugin_t *) plug;
-  return Display_LoadPlugin(plugin);
-}
-
-static int _disconnectPluginFrontendCom(void *plug, void *data) {
-
-  Plugin_t *plugin = (Plugin_t *) plug;
-  return Display_UnloadPlugin(plugin);
-}
-
-/*
- * When daemon is disconnected, reschedule all running plugins
- */
-static int _rescheduleDisconnected(void *plug, void *data) {
-
-  Plugin_t *plugin = (Plugin_t *) plug;
-  //plugin is unloaded from frontend on disconnect
-  plugin->flags &= ~PLUGIN_FLAG_LOADED;
-  Plugin_ResetSchedule(plugin);
-  return 0;
-}
-
-/*
- * Loads a plugin from a directory to the mirror.
- * This should be called after a connection has been made to
- * the mirror, and handles all the initial setup required to load
- * a plugin on the fly
- */
-static int LoadPlugin(char *directory) {
-
-  struct stat st;
-  lstat(directory, &st);
-
-  //must pass in a plugin directory
-  if (!S_ISDIR(st.st_mode)) {
-    SYSLOG(LOG_ERR, "LoadPlugin: Skipped regular file, requires directory");
-    return 0;
-  }
-
-  char *dirName = basename(directory);
-
-  Plugin_t *plugin = Plugin_Init(directory, dirName);
-
-  if (!plugin) {
-    SYSLOG(LOG_ERR, "LoadPlugin: Error initializing plugin.");
-    return -1;
-  }
-
-  //Add plugin to the plugin list
-  PluginList_Add(plugin);
-
-  //start communications
-  if (_startPluginConnection(plugin, NULL)) return 0;
-
-
-  //if there is no connection to the browser, end here
-  if (!Display_IsDisplayConnected()) return 0;
-
-  //otherwise, send the plugin details to the browser so it can be
-  //instantiated
-  if (_initPluginFrontendCom(plugin, NULL)) return -1;
-
-  return 0;
-}
-
 
 /*
  * [scanDirectory] callback function.
@@ -194,9 +103,23 @@ static int LoadPlugin(char *directory) {
 static int initPlugin(char *filepath, struct dirent *dirInfo, void *data) {
 
   SYSLOG(LOG_INFO, "initPlugin: filepath: %s", filepath);
-  return LoadPlugin(filepath);
+  return PluginLoader_LoadPlugin(filepath);
 }
 
+static int _initPluginFrontendCom(void *plug, void *data) {
+
+  return PluginLoader_InitClient((Plugin_t *)plug);
+}
+
+static int _disconnectPluginFrontendCom(void *plug, void *data) {
+
+  return PluginLoader_UnloadClient((Plugin_t *)plug);
+}
+
+static int _rescheduleDisconnected(void *plug, void *data) {
+
+  return PluginLoader_RescheduleDisconnectedPlugin((Plugin_t *)plug);
+}
 
 static int initializeDaemon(char *localDir, char *pluginDir, int portNum) {
 
@@ -234,7 +157,7 @@ static int initializeDaemon(char *localDir, char *pluginDir, int portNum) {
   }
 
   Display_Generate(portNum, COMS_DIR, CSS_DIR, JSLIBS_DIR, INDEX_FILE);
-  API_Init();
+  API_Init(pluginDir);
 
   SYSLOG(LOG_INFO, "Main: creating socket");
   //initialize the websocket interface
@@ -278,7 +201,7 @@ static int daemonProcess(unsigned int sleep) {
       if (curWebStatus) {
         SYSLOG(LOG_INFO, "Main: Daemon successfully connected to web front end.");
         if (!pluginSent) {
-          printf("Connecting plugins\n");
+          SYSLOG(LOG_INFO, "Main: Connecting plugins\n");
           if (PluginList_ForEach(_initPluginFrontendCom, NULL)) {
             //assumes plugin loaded successfully until otherwise
             //error initializing stuff, unload the last send stuff
@@ -310,6 +233,7 @@ static void printHelp() {
 
   printf(HELP_TEXT, prgmName);
 }
+
 
 int main(int argc, char *argv[]) {
 
@@ -349,24 +273,34 @@ int main(int argc, char *argv[]) {
   }
 
   //All code after this is in background!
-  //openlog("magic mirror", LOG_PID | LOG_CONS, LOG_USER);
+  openlog("magic mirror", LOG_PID | LOG_CONS, LOG_USER);
+
+  int prgmStatus = 0;
+  char *runDirectory = realpath(runDir, NULL);
+  do {
+    //don't reboot unless specified during the program run time
+    MainProgramLoop_Reboot = 0;
+    API_ClearShutDown();
+
+    //initialize the daemon and all the plugins
+    if (initializeDaemon(runDirectory, filepath, port)) {
+      free(runDirectory);
+      return EXIT_SUCCESS;
+    }
 
 
-  char *absPluginPath = realpath(runDir, NULL);
-  //initialize the daemon and all the plugins
-  if (initializeDaemon(absPluginPath, filepath, port)) {
-    free(absPluginPath);
-    return EXIT_SUCCESS;
-  }
+    prgmStatus = daemonProcess(sleepDivisor);
 
-  free(absPluginPath);
-  int prgmStatus = daemonProcess(sleepDivisor);
+    //clean up...
+    API_ShutdownPlugins();
+    PluginSocket_Cleanup();
+    Display_Cleanup();
+    PluginList_Free();
 
-  //clean up...
-  API_ShutdownPlugins();
-  PluginSocket_Cleanup();
-  Display_Cleanup();
-  PluginList_Free();
+  } while (MainProgramLoop_Reboot);
+
+  SYSLOG(LOG_INFO, "Main: hard shutdown");
+  free(runDirectory);
   closelog();
 
 

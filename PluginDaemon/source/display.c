@@ -20,6 +20,7 @@
 #include "socketResponse.h"
 
 #define SIZE_CMD "{\"cmd\":\"getsize\"}"
+#define RELOAD_CMD "{\"cmd\":\"reload\",\"data\":%d}"
 
 #define READABLE
 
@@ -317,6 +318,20 @@ int Display_GetDisplaySize(void) {
 
 
   Display_SendFrontendMsg(SIZE_CMD, -1);
+  return 0;
+}
+
+int Display_Reload(int waitSeconds) {
+
+  if (!Display_IsDisplayConnected()) {
+    SYSLOG(LOG_ERR, "Display_LoadPlugin: No browser connection established.");
+    return -1;
+  }
+
+
+  char cmd[PATH_MAX];
+  snprintf(cmd, PATH_MAX, RELOAD_CMD, waitSeconds);
+  Display_SendFrontendMsg(cmd, -1);
   return 0;
 }
 

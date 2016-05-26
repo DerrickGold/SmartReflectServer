@@ -27,6 +27,11 @@ var Display = function(socket, port) {
 
 	this.actions = {
 
+		reload: function(data) {
+			setTimeout(function() {
+				location.reload(true);
+			}, data * 1000);
+		},
 		load: function(data) {
 			var plugName = instance.transform(data.pName);
 			if (instance.doLogging) {

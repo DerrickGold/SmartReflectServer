@@ -17,12 +17,15 @@
 #include "display.h"
 #include "socketResponse.h"
 #include "misc.h"
+#include "pluginLoader.h"
 
 
 #define API_PROTO "STDIN"
 #define API_PLUGLIST_DELIM "\n"
 #define CLIENT_API_HEADER "[API]"
 
+//defined in main.c, toggle to reboot
+extern int MainProgramLoop_Reboot;
 
 
 const char *API_STATUS_STRING[] = {
@@ -36,6 +39,9 @@ static int _shutdown = 0;
 
 static SocketResponse_t inputResponse;
 
+static char *pluginsDirectory = NULL;
+
+static void doAction(struct lws *wsi, char * identifier, APIAction_e action, Plugin_t *plugin, char *value);
 
 APICommand_t allActions[API_ACTION_COUNT] = {
         [API_LIST_CMDS] = {"commands", NONE},
@@ -150,9 +156,14 @@ APICommand_t allActions[API_ACTION_COUNT] = {
          * Write a new entry or overwrite an existing entry in a plugin's
          * config file.
          */
-        [API_SET_CONFIG] = {"setopt", NEED_PLUGIN | NEED_VALUES}
+        [API_SET_CONFIG] = {"setopt", NEED_PLUGIN | NEED_VALUES},
+
+        [API_INSTALL] = {"install", NEED_VALUES},
+
+        [API_REBOOT] = {"reboot", NONE},
 
 };
+
 
 //Returns an APIAction_e value for a given search string
 static APIAction_e findAPICall(char *search) {
@@ -169,38 +180,7 @@ static APIAction_e findAPICall(char *search) {
 }
 
 
-static int api_PluginEnable(Plugin_t *plugin) {
-
-  Plugin_Enable(plugin);
-  Display_LoadPlugin(plugin);
-  //set plugin configuration to load on next boot
-  PluginConf_setValue(plugin, PLUGIN_CONF_START_ON_LOAD, PLUGIN_CONF_OPT_TRUE);
-  SYSLOG(LOG_INFO, "API: Enabled plugin");
-  return 0;
-}
-
-static int api_PluginDisable(void *plug, void *shutdown) {
-
-  Plugin_t *plugin = (Plugin_t *) plug;
-
-  Display_UnloadPlugin(plugin);
-
-  //set plugin to not load next time server is started
-  //if the mirror is shutting down, then the plugin isn't being disabled by the user
-  //and is likely intended to startup again on next boot.
-  if (!shutdown)
-    PluginConf_setValue(plugin, PLUGIN_CONF_START_ON_LOAD, PLUGIN_CONF_OPT_FALSE);
-  else
-    PluginSocket_Update();
-
-  SYSLOG(LOG_INFO, "API: Disabled plugin");
-  Plugin_Disable(plugin);
-
-  return 0;
-}
-
-
-static int api_response(APIResponse_t *response, struct lws *wsi, char *identifier, Plugin_t *plugin, APIAction_e action,
+static int response(APIResponse_t *response, struct lws *wsi, char *identifier, Plugin_t *plugin, APIAction_e action,
                         APIStatus_e status) {
 
   char *plugName = NULL;
@@ -211,21 +191,10 @@ static int api_response(APIResponse_t *response, struct lws *wsi, char *identifi
 }
 
 
-static int _pluginList(void *plugin, void *data) {
-
-  APIResponse_t *response = (APIResponse_t *) data;
-
-  char *name = Plugin_GetName((Plugin_t *) plugin);
-  APIResponse_concat(response, name, -1);
-  APIResponse_concat(response, API_PLUGLIST_DELIM, 1);
-  return 0;
-}
-
-
 /*
  * Sets an action to wait for a response from the daemon plugin communicator.
  */
-static APIStatus_e api_waitForDaemonResponse(APIResponse_t *response, char *identifier, APIAction_e action,
+static APIStatus_e waitForDaemonResponse(APIResponse_t *response, char *identifier, APIAction_e action,
                                              Plugin_t *plugin, struct lws *socket)
 {
 
@@ -249,7 +218,7 @@ static APIStatus_e api_waitForDaemonResponse(APIResponse_t *response, char *iden
  * Sets an action to wait for a response for a value obtained from
  * a plugin's frontend.
  */
-static APIStatus_e api_waitForPluginResponse(APIResponse_t *response, char *identifier, APIAction_e action,
+static APIStatus_e waitForPluginResponse(APIResponse_t *response, char *identifier, APIAction_e action,
                                              Plugin_t *plugin, struct lws *socket)
 {
 
@@ -270,8 +239,55 @@ static APIStatus_e api_waitForPluginResponse(APIResponse_t *response, char *iden
   return rtrn;
 }
 
+
+
+/*
+ * API action implementations
+ */
+
+static int actionPluginList(void *plugin, void *data) {
+
+  APIResponse_t *response = (APIResponse_t *) data;
+
+  char *name = Plugin_GetName((Plugin_t *) plugin);
+  APIResponse_concat(response, name, -1);
+  APIResponse_concat(response, API_PLUGLIST_DELIM, 1);
+  return 0;
+}
+
+static int actionPluginEnable(Plugin_t *plugin) {
+
+  Plugin_Enable(plugin);
+  Display_LoadPlugin(plugin);
+  //set plugin configuration to load on next boot
+  PluginConf_setValue(plugin, PLUGIN_CONF_START_ON_LOAD, PLUGIN_CONF_OPT_TRUE);
+  SYSLOG(LOG_INFO, "API: Enabled plugin");
+  return 0;
+}
+
+static int actionPluginDisable(void *plug, void *shutdown) {
+
+  Plugin_t *plugin = (Plugin_t *) plug;
+
+  Display_UnloadPlugin(plugin);
+
+  //set plugin to not load next time server is started
+  //if the mirror is shutting down, then the plugin isn't being disabled by the user
+  //and is likely intended to startup again on next boot.
+  if (!shutdown)
+    PluginConf_setValue(plugin, PLUGIN_CONF_START_ON_LOAD, PLUGIN_CONF_OPT_FALSE);
+  else
+    PluginSocket_Update();
+
+  SYSLOG(LOG_INFO, "API: Disabled plugin");
+  Plugin_Disable(plugin);
+
+  return 0;
+}
+
+
 //Write or replace a new value to a plugin's config file
-static int api_writePluginSetting(APIResponse_t *response, Plugin_t *plugin, char *setting) {
+static int actionWritePluginSetting(APIResponse_t *response, Plugin_t *plugin, char *setting) {
 
   SYSLOG(LOG_INFO, "Set config: %s", setting);
   char *attr = strrchr(setting, '=');
@@ -298,7 +314,7 @@ static int api_writePluginSetting(APIResponse_t *response, Plugin_t *plugin, cha
 }
 
 //get a setting from the config file
-static int api_getPluginSetting(APIResponse_t *response, Plugin_t *plugin, char *setting) {
+static int actionGetPluginSetting(APIResponse_t *response, Plugin_t *plugin, char *setting) {
 
   int count = 0;
   char **config = PluginConf_GetConfigValue(plugin, setting, &count);
@@ -319,8 +335,14 @@ static int api_getPluginSetting(APIResponse_t *response, Plugin_t *plugin, char 
   return 0;
 }
 
+static int actionInstallPlugin(struct lws *socket, char *identifier, APIResponse_t *response, char *data) {
 
-static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action, Plugin_t *plugin, char *value) {
+  PluginLoader_InstallPlugin(pluginsDirectory, (char *)data);
+  doAction(socket, identifier, API_REBOOT, NULL, NULL);
+  return 0;
+}
+
+static void doAction(struct lws *wsi, char * identifier, APIAction_e action, Plugin_t *plugin, char *value) {
 
   APIStatus_e status = API_STATUS_SUCCESS;
 
@@ -363,11 +385,11 @@ static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action,
     }
       break;
     case API_DISABLE:
-      if (api_PluginDisable(plugin, NULL))
+      if (actionPluginDisable(plugin, NULL))
         status = API_STATUS_FAIL;
       break;
     case API_ENABLE:
-      if (api_PluginEnable(plugin))
+      if (actionPluginEnable(plugin))
         status = API_STATUS_FAIL;
       break;
     case API_RELOAD: {
@@ -376,16 +398,16 @@ static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action,
       int status = Plugin_isEnabled(plugin);
       //only disable and re-enable plugin on the frontend
       //if it was previously running
-      if (status) api_PluginDisable(plugin, NULL);
+      if (status) actionPluginDisable(plugin, NULL);
       Plugin_Reload(plugin);
-      if (status) api_PluginEnable(plugin);
+      if (status) actionPluginEnable(plugin);
 
     }
       break;
     case API_PLUGINS:
       //list plugins to fifo file
       //builds up the payload to send back
-      PluginList_ForEach(_pluginList, immResponse);
+      PluginList_ForEach(actionPluginList, immResponse);
       break;
     case API_PLUG_DIR:
       //get plugin's data directory
@@ -395,7 +417,7 @@ static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action,
     case API_RM_PLUG: {
       //if plugin is currently running, unload it first
       if (Plugin_isEnabled(plugin))
-        api_PluginDisable(plugin, NULL);
+        actionPluginDisable(plugin, NULL);
 
       //set plugin name as payload since the name
       //will not be available after removing the plugin.
@@ -410,9 +432,13 @@ static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action,
       if (Display_GetDisplaySize())
         status = API_STATUS_FAIL;
 
-      status = api_waitForDaemonResponse(immResponse, identifier, action, plugin, wsi);
+      status = waitForDaemonResponse(immResponse, identifier, action, plugin, wsi);
     }
       break;
+
+    case API_REBOOT:
+      MainProgramLoop_Reboot = 1;
+      Display_Reload(10);
     case API_STOP:
       _shutdown = 1;
       APIResponse_concat(immResponse, "Shutting down daemon...", -1);
@@ -428,7 +454,7 @@ static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action,
       //modify this css file with the values
       SYSLOG(LOG_INFO, "Modified plugin css");
       Plugin_SendMsg(plugin, "getcss", value);
-      status = api_waitForPluginResponse(immResponse, identifier, action, plugin, wsi);
+      status = waitForPluginResponse(immResponse, identifier, action, plugin, wsi);
       break;
 
     case API_DUMP_CSS:
@@ -445,7 +471,7 @@ static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action,
 
     case API_JS_PLUG_CMD: {
       Plugin_SendMsg(plugin, "jsPluginCmd", value);
-      status = api_waitForPluginResponse(immResponse, identifier, action, plugin, wsi);
+      status = waitForPluginResponse(immResponse, identifier, action, plugin, wsi);
       //WAIT_FOR_RESPONSE;
     }
       break;
@@ -457,23 +483,27 @@ static void _applyAction(struct lws *wsi, char * identifier, APIAction_e action,
       break;
 
     case API_GET_CONFIG:
-      if (api_getPluginSetting(immResponse, plugin, value))
+      if (actionGetPluginSetting(immResponse, plugin, value))
         status = API_STATUS_FAIL;
       break;
 
     case API_SET_CONFIG:
-      if (api_writePluginSetting(immResponse, plugin, value))
+      if (actionWritePluginSetting(immResponse, plugin, value))
         status = API_STATUS_FAIL;
 
       break;
 
+    case API_INSTALL:
+      SYSLOG(LOG_INFO, "Installing: %s", value);
+      actionInstallPlugin(wsi, identifier, immResponse, value);
+      break;
     default:
       break;
   }
 
   _response:
   //respond with the built payload for the given action
-  api_response(immResponse, wsi, identifier, plugin, action, status);
+  response(immResponse, wsi, identifier, plugin, action, status);
   APIResponse_free(immResponse);
 }
 
@@ -562,6 +592,7 @@ static void parseInput(char *input, size_t inputLen, struct lws *wsi) {
     goto _doAction;
 
   SYSLOG(LOG_INFO, "Action Num: %d", action);
+
   //Next get the plugin name if required
   if ((parseStatus = parseInputLine(pos, inputEnd, &pluginName, &pos)) < 0) {
     //end of string
@@ -569,8 +600,10 @@ static void parseInput(char *input, size_t inputLen, struct lws *wsi) {
   }
   parsed += (parseStatus > 0);
 
-  //attempt to find the plugin
-  plugin = PluginList_Find(pluginName);
+  if (pluginName && strlen(pluginName) > 0) {
+    //attempt to find the plugin
+    plugin = PluginList_Find(pluginName);
+  }
 
   //if all input has been consumed, try the action
   if (parsed)
@@ -581,14 +614,14 @@ static void parseInput(char *input, size_t inputLen, struct lws *wsi) {
 
   _doAction:
   //now check if plugin exists
-  _applyAction(wsi, identifier, action, plugin, value);
+  doAction(wsi, identifier, action, plugin, value);
 }
 
 /*
  * This callback handler is for handling external applications -> this daemon information. This daemon will
  * then forward messages to the proper frontend interface.
  */
-static int API_Callback(struct lws *wsi, websocket_callback_type reason, void *user, void *in, size_t len) {
+static int apiCallback(struct lws *wsi, websocket_callback_type reason, void *user, void *in, size_t len) {
 
 
   struct lws_protocols *proto = NULL;
@@ -637,23 +670,30 @@ static int API_Callback(struct lws *wsi, websocket_callback_type reason, void *u
   return 0;
 }
 
+/*
+ * public facing functions
+ */
+
+
 void API_ShutdownPlugins() {
 
-  //pass non-null value into api_PluginDisable so each plugin isn't disabled
+  //pass non-null value into actionPluginDisable so each plugin isn't disabled
   //on next boot
   char dontSave = 1;
-  PluginList_ForEach(api_PluginDisable, (void*)&dontSave);
+  PluginList_ForEach(actionPluginDisable, (void*)&dontSave);
   PluginSocket_Update();
   SocketResponse_free(&inputResponse);
 }
 
-void API_Init(void) {
+void API_Init(char *pluginDir) {
+
+  pluginsDirectory = pluginDir;
 
   //create websocket protocol for standard input
   struct lws_protocols proto = {};
   //replace the old _arrayTerminate protocol with an actual protocol
   proto.name = API_PROTO;
-  proto.callback = &API_Callback;
+  proto.callback = &apiCallback;
   proto.rx_buffer_size = PLUGIN_RX_BUFFER_SIZE;
   PluginSocket_AddProtocol(&proto);
   SocketResponse_free(&inputResponse);
@@ -671,6 +711,10 @@ void API_Update(void) {
 int API_Shutdown(void) {
 
   return _shutdown;
+}
+
+int API_ClearShutDown(void) {
+  _shutdown = 0;
 }
 
 int API_Parse(struct lws *socket, char *in, size_t len) {

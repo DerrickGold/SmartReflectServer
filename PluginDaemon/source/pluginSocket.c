@@ -46,6 +46,7 @@ struct lws_protocols listTerminator = {
 };
 
 
+
 /*
  * Set up html file serving.
  */
@@ -162,14 +163,21 @@ int PluginSocket_AddProtocol(struct lws_protocols *proto) {
 
   if (_lastProtocol >= _protocolCount) {
 
-    struct lws_protocols *protos = realloc(_protocols, sizeof(struct lws_protocols) * (_protocolCount + 1));
-    if (!protos) {
-      SYSLOG(LOG_ERR, "PluginSocket_MakeProtocol: Error reallocating protocol list: count: %d", _protocolCount);
-      return -1;
+    int start = 0;
+    if (!_protocolCount) {
+      _protocolCount = BASE_PROTO_POOL;
+      //start++;
     }
 
+
+    int newCount = _protocolCount + 1;
+    struct lws_protocols *protos = realloc(_protocols, sizeof(struct lws_protocols) * newCount);
+    if (!protos) {
+      SYSLOG(LOG_ERR, "PluginSocket_MakeProtocol: Error reallocating protocol list: count: %d", newCount);
+      return -1;
+    }
     _protocols = protos;
-    _protocolCount++;
+    _protocolCount = newCount;
     SYSLOG(LOG_INFO, "Addprotocol: resized pool %d", _protocolCount);
   }
 
@@ -183,7 +191,6 @@ int PluginSocket_AddProtocol(struct lws_protocols *proto) {
 
 
   //replace the old _arrayTerminate protocol with an actual protocol
-
   _protocols[_lastProtocol].name = proto->name;
   _protocols[_lastProtocol].callback = proto->callback;
   _protocols[_lastProtocol].user = proto->user;
