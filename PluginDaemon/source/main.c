@@ -19,7 +19,7 @@
 
 //one second in nanoseconds
 #define SECOND 1000000000
-#define DEFAULT_SLEEP_DIV 100
+#define DEFAULT_SLEEP_DIV 10000
 
 #define COMS_DIR "com"
 #define MAIN_COM "main.fifo"
@@ -260,7 +260,7 @@ static int daemonProcess(unsigned int sleep) {
   int pluginSent = 0;
 
   //prevent division by 0
-  sleep = (sleep == 0) ? 1 : sleep;
+  sleep = (sleep == 0) ? DEFAULT_SLEEP_DIV : sleep;
 
   struct timespec sleepTime = {
       .tv_nsec=SECOND/sleep
