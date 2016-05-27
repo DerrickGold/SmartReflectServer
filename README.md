@@ -47,7 +47,7 @@ Cowsay plugin enabled on the actual mirror.
 ![Web GUI] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/WebManager.png)
 ![Gui Options] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/menu-expanded.png)
 
-The web GUI for enabling, disabline, and moving plugins, or accessing plugin specific settings.
+The web GUI for installing, enabling, disabling, moving plugins, or accessing plugin specific settings.
 
 ![Moving Plugin] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/MovePlugin.png)
 
