@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.6)
 
-project (SmartReflect)
+project (SmartReflect C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${PROJECT_SOURCE_DIR}/cmake/")
 
@@ -14,7 +14,7 @@ aux_source_directory(DaemonCom DAEMONCOM_SRC)
 add_executable(mmcom ${DAEMONCOM_SRC})
 target_compile_options(mmcom PRIVATE "-O1")
 
-if (LIBWEBSOCKETS_FOUND) 
+if (LIBWEBSOCKETS_FOUND)
 	include_directories(${LIBWEBSOCKETS_INCLUDE_DIR})
 	target_link_libraries(mmcom ${LIBWEBSOCKETS_LIBRARIES})
 else ()
