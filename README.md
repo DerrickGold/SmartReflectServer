@@ -45,6 +45,7 @@ A shopping list created using the attached touchscreen.
 Cowsay plugin enabled on the actual mirror.
 
 ![Web GUI] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/WebManager.png)
+![Gui Options] (https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/menu-expanded.png)
 
 The web GUI for enabling, disabline, and moving plugins, or accessing plugin specific settings.
 
