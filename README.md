@@ -2,6 +2,7 @@
 A modular Smart Mirror software solution with API's for external hardware interaction, and support for plugins written in any programming language.
 
 
+
 ##About:
 The biggest flaw of the typical Smart Mirror setup is the utilization of the web browser as the mirror display’s form of information presentation. Web browsers create a sandboxed environment for the code that runs within it which limits hardware access and is typically driven through user events generated on the displayed web page. These limitations pose a few problems: 
   1. user events can not be generated naturally in a browser when one interacts with the browser as one would a mirror; 
@@ -20,12 +21,24 @@ That being said, there are still some obvious benefits for using a web browser f
 
 Smart Reflect Server solves these browser limitations by creating and managing a real time communication API for plugin communications. This allows native programs and scripts to send draw calls and retreive information from the web browser display with all the scripting and styling benefits of using a web browser for presenting plugin information.
 
+##Wiki
+Please refer to the Wiki for further details on setup, operation, and plugin development.
+[The Wiki] (../../wiki)
+
 ###Features:
 * Support for plugins written in any programming language! 
 * An API for any program to update their own web display and web configuration
 * An API for managing plugins with built in web interface (enabling/disabling plugins + re-arranging plugins) 
 * Built in scheduler for running short lived scripts/programs and redirecting their output onto the mirror display
 * Easy to add/remove plugins, no coding necessary; just drag and drop them into the necessary folder!
+
+##Sample Plugins:
+* [YoutubePlaylist] (https://github.com/DerrickGold/YoutubePlaylist): Queue and play youtube videos on your mirror
+
+* [SysInfo] (https://github.com/DerrickGold/SysInfo): Display system information
+
+* [XKCDComic] (https://github.com/DerrickGold/XKCDComic): Display random XKCD Comics
+
 
 ##Screenshots:
 ![Mirror display](https://raw.githubusercontent.com/DerrickGold/SmartReflectServer/master/ScreenShots/Display.png)
@@ -53,9 +66,7 @@ The web GUI for installing, enabling, disabling, moving plugins, or accessing pl
 
 Rearrange your plugins using your phone touch screen via the web GUI!
 
-##Wiki
-Please refer to the Wiki for further details on setup, operation, and plugin development.
-[The Wiki] (../../wiki)
+
 
 ##Project History
 This project started as a capstone project for our (Derrick and David) Computer Science degree. Our semester was only 3 months long, so with other classes going on, not a lot of time could be put into the project; it's more or less a proof of concept system. This repository is a second repository with all our capstone specific information and code that is not necessary removed for the sake of keeping our original repository intact for marking and historic purposes; hence the suddenly populated repository.
