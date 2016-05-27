@@ -1,7 +1,7 @@
 var MirrorAPI = function(addr) {
 
 	var instance = this;
-	this.doLogging = false;
+	this.doLogging = true;
 	this.stdinSocket = null;
 	this.apiIdentifier = "mirrorAPI" + Math.random().toString(36);
 
@@ -20,7 +20,9 @@ var MirrorAPI = function(addr) {
 		getopt: 0,
 		setopt: 0,
 		getdir: 0,
-		jscmd: 0
+		jscmd: 0,
+		reboot: 0,
+		install: 0
 	};
 
 	//set a callback function for a particular api response
@@ -91,7 +93,12 @@ var MirrorAPI = function(addr) {
 				fn: parts[0],
 				value: res[0]
 			};
-		}
+		},
+		install: function(payload) { return payload; },
+
+		reboot: function(payload) {
+			return parseInt(payload);
+		},
 	}
 
 	this.apiCall = {
@@ -157,13 +164,22 @@ var MirrorAPI = function(addr) {
         jscmd: function(plugin, data) {
         	var jsonStr = JSON.stringify(data);
         	instance.apiSend("jscmd", plugin, jsonStr);
+        },
+        install: function(plugin, data) {
+        	instance.apiSend("install", null, data);
+        },
+        reboot: function(plugin, data) {
+        	instance.apiSend("reboot", null, null);
         }
     };
 
     this.apiSend  = function(command, plugin, data) {
     	var str = instance.apiIdentifier + "\n" + command + "\n";
     	if (plugin) str += plugin + "\n";
-    	if (data) str += data;
+    	if (data) {
+    		if (!plugin) str += '\n';
+    		str += data;
+    	}
 
     	if (instance.doLogging)
 	    	console.log("API STRING: \n" + str);

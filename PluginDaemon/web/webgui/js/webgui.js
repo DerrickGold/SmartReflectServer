@@ -31,6 +31,14 @@ var WebGui = function(mirrorAPI) {
 
     var statusIcon = "<span class=\"label\">Not Available</span>"
 
+    function showInstallScreen(on) {
+        if (on)
+            $('#installScreen').show();
+        else
+            $('#installScreen').hide();
+    }
+
+
     function statusClass(pluginName) {
     	return pluginName + "Status";
     }
@@ -317,9 +325,36 @@ var WebGui = function(mirrorAPI) {
         	panels[plugin].pluginDir = payload;
         });
 
+        mirrorAPI.onAPIResponse("install", function(status, plugin, payload) {
+            showInstallScreen(false);
+        });
+
+        mirrorAPI.onAPIResponse("reboot", function(status, plugin, payload) {
+            alert("Mirror is rebooting!");
+        });
+
         mirrorAPI.doAPICall("list");
         mirrorAPI.doAPICall("display");
 	};
+
+    $('#addPluginBtn').prop('disabled', true);
+
+    $('#pluginUrlBox').on('input change', function(e) {
+        //console.log(e.target.value);
+        var repoUrl = e.target.value;
+        if (repoUrl.length > 0)
+            $('#addPluginBtn').prop('disabled', false);
+        else
+            $('#addPluginBtn').prop('disabled', true);
+    });
+
+    $('#addPluginBtn').click(function() {
+        var repourl = $('#pluginUrlBox').val();
+        console.log("installing... " + repourl);
+        mirrorAPI.doAPICall("install", null, repourl);
+        $('#loadCenter p').text("Installing Plugin");
+        showInstallScreen(true);
+    });
 
 	this.init();
 };

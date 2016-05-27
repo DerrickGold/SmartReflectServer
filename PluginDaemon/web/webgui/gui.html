@@ -28,9 +28,9 @@
         mirror.onConnection(function() {
             //start the mirror here
             var gui = new WebGui(mirror);
-            /*setInterval(function() {
+            setInterval(function() {
                 mirror.doAPICall("display");
-            }, 5000);*/
+            }, 5000);
         });
 
     });
@@ -39,11 +39,51 @@
 
 <body>
 <div id="content">
+	<div id="installScreen">
+		<div id="loadingMask">
+        <div id="loadCenter">
+        	<p></p>
+            <div class="loader"></div>
+        </div>
+    	</div>
+	</div>
 	<div class="row">
+
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+              <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1" aria-expanded="false" id="menuBtn">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </button>
+              <a class="navbar-brand" href="#">Plugin Configuration</a>
+            </div>
+
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                <ul class="nav navbar-nav">
+                    <li><a href="#" id="rebootBtn">Reboot Server</a></li>
+                </ul>
+
+
+                <div class="navbar-form navbar-left">
+                <div class="input-group">
+                  <input type="text" class="form-control" id="pluginUrlBox" placeholder="Git Repo Url">
+                    <span class="input-group-btn ">
+                        <button type="button" class="btn btn-default" id="addPluginBtn">Install Plugin</button>
+                    </span>
+                </div>
+                </div>
+
+                </div><!-- /.navbar-collapse -->
+             </div><!-- /.container-fluid -->
+        </nav>
+
 		<div class="Connected alert alert-warning" role="alert">
 			<strong>Warning:</strong> No Mirror display connected.
 		</div>
-		<h1 class="pgTitle">Plugin Web Configuration</h1>
 	</div>
 
 	<div class="RepositionMenu">
