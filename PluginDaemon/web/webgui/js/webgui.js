@@ -330,7 +330,11 @@ var WebGui = function(mirrorAPI) {
         });
 
         mirrorAPI.onAPIResponse("reboot", function(status, plugin, payload) {
-            alert("Mirror is rebooting!");
+            //alert("Mirror is rebooting! " + payload);
+            setTimeout(function() {
+                location.reload(true);
+            }, parseInt(payload) * 1000);
+
         });
 
         mirrorAPI.doAPICall("list");
@@ -354,6 +358,12 @@ var WebGui = function(mirrorAPI) {
         mirrorAPI.doAPICall("install", null, repourl);
         $('#loadCenter p').text("Installing Plugin");
         showInstallScreen(true);
+    });
+
+    $('#rebootBtn').click(function() {
+        $('#loadCenter p').text("Rebooting");
+        showInstallScreen(true);
+        mirrorAPI.doAPICall("reboot");
     });
 
 	this.init();

@@ -8,8 +8,8 @@
 #include <limits.h>
 #include <syslog.h>
 #include <libgen.h>
-//#include <time.h>
-#include <sched.h>
+#include <time.h>
+
 
 #include "misc.h"
 #include "pluginSocket.h"
@@ -41,9 +41,20 @@
  "\t\t-p: Set what port to use for the server. Default is 5000\n" \
  "\t\t-s: Set number of cycles per second to run the server at. Default is 100.\n"
 
+/*
+ * Time in seconds it took the system to load all the plugins
+ * and instantiate the socket server. This is used as an estimate
+ * for determining how long the display and web gui should wait
+ * before reloading their pages.
+ */
+unsigned int MainProgram_BootSeconds = 0;
 
-int MainProgramLoop_Reboot = 0;
+/*
+ * Store name of the binary here for use in the help text.
+ */
 static char *prgmName = NULL;
+
+
 
 
 static void mainDaemon() {
@@ -278,9 +289,7 @@ int main(int argc, char *argv[]) {
   int prgmStatus = 0;
   char *runDirectory = realpath(runDir, NULL);
   do {
-    //don't reboot unless specified during the program run time
-    MainProgramLoop_Reboot = 0;
-    API_ClearShutDown();
+    unsigned int startTime = time(NULL);
 
     //initialize the daemon and all the plugins
     if (initializeDaemon(runDirectory, filepath, port)) {
@@ -288,6 +297,7 @@ int main(int argc, char *argv[]) {
       return EXIT_SUCCESS;
     }
 
+    MainProgram_BootSeconds = (time(NULL) - startTime) + 1;
 
     prgmStatus = daemonProcess(sleepDivisor);
 
@@ -297,7 +307,7 @@ int main(int argc, char *argv[]) {
     Display_Cleanup();
     PluginList_Free();
 
-  } while (MainProgramLoop_Reboot);
+  } while (API_Reboot());
 
   SYSLOG(LOG_INFO, "Main: hard shutdown");
   free(runDirectory);

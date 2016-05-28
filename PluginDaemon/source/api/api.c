@@ -24,8 +24,8 @@
 #define API_PLUGLIST_DELIM "\n"
 #define CLIENT_API_HEADER "[API]"
 
-//defined in main.c, toggle to reboot
-extern int MainProgramLoop_Reboot;
+//defined in main.c, read for time it takes to boot
+extern unsigned int MainProgram_BootSeconds;
 
 
 const char *API_STATUS_STRING[] = {
@@ -36,6 +36,8 @@ const char *API_STATUS_STRING[] = {
 };
 
 static int _shutdown = 0;
+
+static int _reboot = 0;
 
 static SocketResponse_t inputResponse;
 
@@ -181,7 +183,8 @@ static APIAction_e findAPICall(char *search) {
 
 
 static int response(APIResponse_t *response, struct lws *wsi, char *identifier, Plugin_t *plugin, APIAction_e action,
-                        APIStatus_e status) {
+                        APIStatus_e status)
+{
 
   char *plugName = NULL;
   if (plugin)
@@ -436,12 +439,19 @@ static void doAction(struct lws *wsi, char * identifier, APIAction_e action, Plu
     }
       break;
 
-    case API_REBOOT:
-      MainProgramLoop_Reboot = 1;
-      Display_Reload(10);
+    case API_REBOOT: {
+      _reboot = 1;
+
+      char numString[PATH_MAX];
+      sprintf(numString, "%d", MainProgram_BootSeconds);
+      //return number of seconds to the web gui to reboot on
+      APIResponse_concat(immResponse, numString, -1);
+      Display_Reload(MainProgram_BootSeconds);
+    }
     case API_STOP:
       _shutdown = 1;
-      APIResponse_concat(immResponse, "Shutting down daemon...", -1);
+      if (!API_Reboot())
+        APIResponse_concat(immResponse, "Shutting down daemon...", -1);
       SYSLOG(LOG_INFO, "Stopped mirror");
       break;
     case API_SET_CSS:
@@ -698,6 +708,9 @@ void API_Init(char *pluginDir) {
   PluginSocket_AddProtocol(&proto);
   SocketResponse_free(&inputResponse);
   APIPending_init();
+
+  _shutdown = 0;
+  _reboot = 0;
 }
 
 //API Update loop for processing pending actions
@@ -713,8 +726,9 @@ int API_Shutdown(void) {
   return _shutdown;
 }
 
-int API_ClearShutDown(void) {
-  _shutdown = 0;
+int API_Reboot(void) {
+
+  return _reboot;
 }
 
 int API_Parse(struct lws *socket, char *in, size_t len) {

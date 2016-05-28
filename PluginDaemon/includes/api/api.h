@@ -55,7 +55,7 @@ extern void API_Init(char *pluginDir);
 
 extern int API_Shutdown(void);
 
-extern int API_ClearShutDown(void);
+extern int API_Reboot(void);
 
 extern void API_Update(void);
 
