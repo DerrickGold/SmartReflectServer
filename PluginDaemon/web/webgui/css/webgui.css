@@ -29,7 +29,7 @@
 }
 
 .loader {
-    margin: 60px auto;
+    margin: auto;
     font-size: 10px;
     position: relative;
 
@@ -93,4 +93,5 @@
 #loadCenter p {
 	color: white;
     text-align: center;
+    font-size: 16pt;
 }
