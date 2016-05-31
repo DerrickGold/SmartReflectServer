@@ -232,7 +232,6 @@ static APIStatus_e waitForPluginResponse(APIResponse_t *response, char *identifi
 
   APIStatus_e rtrn = API_STATUS_PENDING;
   if (!APIPending_addAction(APIPENDING_PLUGIN, identifier, action, plugin, socket)) {
-    //Plugin_FreeFrontEndResponse(plugin);
     Plugin_ClientFreeResponse(plugin);
   } else {
     rtrn = API_STATUS_FAIL;
@@ -372,11 +371,8 @@ static void doAction(struct lws *wsi, char * identifier, APIAction_e action, Plu
 
   switch (action) {
     case API_NO_ACTION:
-      //PluginSocket_writeToSocket(wsi, "Specified action does not exist", -1);
-      //return;
       status = API_STATUS_FAIL;
       APIResponse_concat(immResponse, "Specified action does not exist", -1);
-      //syslog(LOG_INFO, "Specified action does not exist.");
       break;
     case API_LIST_CMDS: {
 
@@ -444,9 +440,9 @@ static void doAction(struct lws *wsi, char * identifier, APIAction_e action, Plu
 
       char numString[PATH_MAX];
       sprintf(numString, "%d", MainProgram_BootSeconds);
+      SYSLOG(LOG_INFO, "API Reboot String: %s", numString);
       //return number of seconds to the web gui to reboot on
       APIResponse_concat(immResponse, numString, -1);
-      Display_Reload(MainProgram_BootSeconds);
     }
     case API_STOP:
       _shutdown = 1;
@@ -691,7 +687,19 @@ void API_ShutdownPlugins() {
   //on next boot
   char dontSave = 1;
   PluginList_ForEach(actionPluginDisable, (void*)&dontSave);
-  PluginSocket_Update();
+
+  //wait for plugins to disconnect
+  while (Display_GetConnectedPluginCount()) {
+    API_Update();
+    PluginSocket_Update();
+  }
+
+  if (_reboot) {
+    Display_Reload(MainProgram_BootSeconds);
+    API_Update();
+    PluginSocket_Update();
+  }
+
   SocketResponse_free(&inputResponse);
 }
 

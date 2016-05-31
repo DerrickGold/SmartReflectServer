@@ -20,6 +20,8 @@ extern void Display_ClearDisplayResponse(void);
 
 extern char *Display_GetDisplayResponse(void);
 
+extern int Display_GetConnectedPluginCount(void);
+
 extern void Display_Cleanup(void);
 
 #endif

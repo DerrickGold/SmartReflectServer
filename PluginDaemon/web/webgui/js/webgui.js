@@ -281,8 +281,8 @@ var WebGui = function(mirrorAPI) {
         });
 
         mirrorAPI.onAPIResponse("mirrorsize", function(status, plugin, size) {
-            mirrorW = size.width;
-            mirrorH = size.height;
+            mirrorW = parseInt(size.width);
+            mirrorH = parseInt(size.height);
             instance.haveSize = true;
             instance.initMoveMenu(mirrorW, mirrorH);
         });
@@ -294,8 +294,8 @@ var WebGui = function(mirrorAPI) {
         mirrorAPI.onAPIResponse("display", function(status, plugin, payload) {
             if (status == "success") {
                 $('.Connected.alert.alert-warning').hide();
-                if (!instance.haveSize)
-                    mirrorAPI.doAPICall("mirrorsize");
+                //if (!instance.haveSize)
+                mirrorAPI.doAPICall("mirrorsize");
             } else
                 $('.Connected.alert.alert-warning').show();
 
@@ -337,8 +337,9 @@ var WebGui = function(mirrorAPI) {
 
         });
 
-        mirrorAPI.doAPICall("list");
         mirrorAPI.doAPICall("display");
+        mirrorAPI.doAPICall("list");
+
 	};
 
     $('#addPluginBtn').prop('disabled', true);

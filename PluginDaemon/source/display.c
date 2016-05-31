@@ -58,6 +58,7 @@
 static SocketResponse_t displayResponse;
 
 static int _displayConnected = 0;
+static int _loadedPlugins = 0;
 
 static struct lws *displaySocketInstance = NULL;
 
@@ -216,6 +217,10 @@ static int _displayCallback(struct lws *wsi, enum lws_callback_reasons reason, v
           _displayConnected = 1;
           SYSLOG(LOG_INFO, "_displayCallback: Successfully connected to browser.");
           return 0;
+        } else {
+          _loadedPlugins -= (!strncmp(socketResponse, "unloaded", socketSize));
+          _loadedPlugins += (!strncmp(socketResponse, "loaded", socketSize));
+          SYSLOG(LOG_INFO, "Display Callback: Number of plugins loaded: %d", _loadedPlugins);
         }
       }
       break;
@@ -441,3 +446,6 @@ char *Display_GetDisplayResponse(void) {
   return SocketResponse_get(&displayResponse);
 }
 
+int Display_GetConnectedPluginCount(void) {
+  return _loadedPlugins;
+}

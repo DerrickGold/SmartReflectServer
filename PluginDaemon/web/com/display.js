@@ -28,9 +28,10 @@ var Display = function(socket, port) {
 	this.actions = {
 
 		reload: function(data) {
+			console.log("Reboot time: " + data);
 			setTimeout(function() {
 				location.reload(true);
-			}, data * 1000);
+			}, parseInt(data.data) * 1000);
 		},
 		load: function(data) {
 			var plugName = instance.transform(data.pName);
@@ -45,6 +46,7 @@ var Display = function(socket, port) {
 				port: instance.port
 			});
 
+			instance.socket.send("loaded");
 		},
 		unload: function(data) {
 			var plugName = instance.transform(data.pName);
@@ -52,6 +54,7 @@ var Display = function(socket, port) {
 				instance.pluginList[plugName].close();
 				delete instance.pluginList[plugName];
 			}
+			instance.socket.send("unloaded");
 		},
 		getsize: function(data) {
 			var width = window.innerWidth,

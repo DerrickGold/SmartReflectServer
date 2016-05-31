@@ -298,11 +298,13 @@ int main(int argc, char *argv[]) {
     }
 
     MainProgram_BootSeconds = (time(NULL) - startTime) + 1;
+    SYSLOG(LOG_INFO, "Boot Time: %d", MainProgram_BootSeconds);
 
     prgmStatus = daemonProcess(sleepDivisor);
 
     //clean up...
     API_ShutdownPlugins();
+
     PluginSocket_Cleanup();
     Display_Cleanup();
     PluginList_Free();
