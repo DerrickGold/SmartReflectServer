@@ -19,9 +19,10 @@
 #define DEFAULT_PORT 5000
 
 #define HELP_TEXT \
- "\n%s: [-p PORT_NUM] -c COMMAND [[-x PLUGIN] [-v VALUES]]\n" \
+ "\n%s: [-a server address] [-p PORT_NUM] -c COMMAND [[-x PLUGIN] [-v VALUES]]\n" \
  "\tSends a command to the running SmartReflect PluginDaemon process and returns the result.\n\n" \
  "\tArguments:\n" \
+ "\t\t-a: Specify an server address. Default is 'localhost'.\n" \
  "\t\t-p: Specify a port number to use. Default is %d.\n" \
  "\t\t-c: The command action to perform:\n" \
  "\t\t\tdisable: Disable a currently running plugin.\n" \
@@ -248,16 +249,24 @@ int main(int argc, char *argv[]) {
   //generate Identifier for filtering responses
   srand(time(NULL));
   sprintf(API_IDENTIFIER, "mmcom%d", rand());
-  char *port = NULL, *cmd = NULL, *plugin = NULL, *values = NULL;
+
+  char *address = server,
+          *port = NULL,
+          *cmd = NULL,
+          *plugin = NULL,
+          *values = NULL;
 
   //loop through arguments and collect options
   int c;
-  while ((c = getopt(argc, argv, "hp:c:x:v:")) != -1) {
+  while ((c = getopt(argc, argv, "ha:p:c:x:v:")) != -1) {
 
     switch (c) {
       case 'h':
         printHelp();
         return EXIT_SUCCESS;
+      case 'a':
+        address = optarg;
+        break;
       case 'p':
         port = optarg;
         break;
@@ -311,7 +320,7 @@ int main(int argc, char *argv[]) {
     return -1;
 
   const char *prot;
-  if (lws_parse_uri(server, &prot, &i.address, &i.port, &i.path)) {
+  if (lws_parse_uri(address, &prot, &i.address, &i.port, &i.path)) {
     printf("Client.c: Error parsing uri\n");
     exit(1);
   }
