@@ -9,8 +9,6 @@
 
 #define NUM_BUFFERED_WRITES 256
 
-//max number of characters for ipv6
-#define IP_STR_LEN 45
 
 typedef struct BufferedWrite_s {
     int descriptor;
