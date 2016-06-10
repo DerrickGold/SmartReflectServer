@@ -12,18 +12,20 @@
 #include "misc.h"
 #include "protocolWrite.h"
 
-void _clearQueue(WriteQueue_t *queue) {
-
+static void _clearQueue(WriteQueue_t *queue, int fd) {
 
   size_t i = 0;
-
   for (i = 0; i < NUM_BUFFERED_WRITES; i++) {
+
     BufferedWrite_t *buffers = &queue->writes[i];
+
+    if (fd > -1 && buffers->descriptor != fd)
+      continue;
+
     if (buffers->msg)
       free(buffers->msg);
 
     buffers->msg = NULL;
-    buffers->socket = NULL;
     buffers->len = 0;
   }
 
@@ -31,47 +33,39 @@ void _clearQueue(WriteQueue_t *queue) {
   queue->lastBuffered = 0;
 }
 
-void _clearDeadQueue(WriteQueue_t *queue, struct lws *cur) {
 
+static int getProtocolID(struct lws *socket) {
 
-  size_t i = 0;
-
-  for (i = 0; i < NUM_BUFFERED_WRITES; i++) {
-    BufferedWrite_t *buffers = &queue->writes[i];
-
-    //only clearing closed queues
-    if (!buffers->socket)
-      continue;
-
-    if (buffers->msg)
-      free(buffers->msg);
-
-    buffers->msg = NULL;
-    buffers->socket = NULL;
-    buffers->len = 0;
+  struct lws_protocols *proto = (struct lws_protocols *) lws_get_protocol(socket);
+  if (!proto || proto->id < 0) {
+    SYSLOG(LOG_ERR, "ERROR: Socket has no protocol associated");
+    return -1;
   }
+
+  return proto->id;
 }
+
+
 
 void Protocol_addWriteToQueue(ProtocolWrites_t * protowrites, struct lws *socket, void *msg, size_t len) {
 
   if (!protowrites)
     return;
 
-  struct lws_protocols *proto = (struct lws_protocols *) lws_get_protocol(socket);
-  if (!proto) {
-    SYSLOG(LOG_ERR, "ERROR: Socket has no protocol associated");
+  int protoID = getProtocolID(socket);
+  if (!protowrites->buffer || protoID < 0 || protoID > protowrites->bufferCount)
     return;
-  }
 
   //SYSLOG(LOG_INFO, "Protocol_addWriteToCueue: Buffering queue [%d]", proto->id);
-  WriteQueue_t *curBuffer = &protowrites->buffer[proto->id];
+  WriteQueue_t *curBuffer = &protowrites->buffer[protoID];
   BufferedWrite_t *curWrite = &curBuffer->writes[curBuffer->lastBuffered];
 
   if (curWrite->msg) {
     SYSLOG(LOG_ERR, "WRITING OVER BUFFERED MSG");
     free(curWrite->msg);
   }
-  curWrite->socket = socket;
+
+  curWrite->descriptor = lws_get_socket_fd(socket);
   curWrite->msg = msg;
   curWrite->len = len;
 
@@ -79,22 +73,27 @@ void Protocol_addWriteToQueue(ProtocolWrites_t * protowrites, struct lws *socket
   curBuffer->lastBuffered %= NUM_BUFFERED_WRITES;
 }
 
-void Protocol_processQueue(ProtocolWrites_t *protowrites, unsigned int protocolID) {
+void Protocol_processQueue(struct lws *socket, ProtocolWrites_t *protowrites) {
 
-  if (!protowrites || protocolID < 0 || protocolID > protowrites->bufferCount)
+  if (!socket || !protowrites)
     return;
 
-  WriteQueue_t *curBuffer = &protowrites->buffer[protocolID];
-  //SYSLOG(LOG_INFO, "Protocol_processQueue: Processing queue [%d]", protocolID);
+  int protoID = getProtocolID(socket);
+  if (!protowrites->buffer || protoID < 0 || protoID > protowrites->bufferCount)
+    return;
+
+  WriteQueue_t *curBuffer = &protowrites->buffer[protoID];
+  int fd = lws_get_socket_fd(socket);
+
   do {
     BufferedWrite_t *curWrite = &curBuffer->writes[curBuffer->lastWritten];
-    if (!curWrite->socket || !curWrite->msg || lws_partial_buffered(curWrite->socket))
+
+    if (!curWrite->msg || fd != curWrite->descriptor || lws_partial_buffered(socket))
       goto increment;
 
-    lws_write(curWrite->socket, curWrite->msg + LWS_SEND_BUFFER_PRE_PADDING, curWrite->len, LWS_WRITE_TEXT);
+    lws_write(socket, curWrite->msg + LWS_SEND_BUFFER_PRE_PADDING, curWrite->len, LWS_WRITE_TEXT);
     free(curWrite->msg);
     curWrite->msg = NULL;
-    curWrite->socket = NULL;
 
     increment:
     curBuffer->lastWritten++;
@@ -123,7 +122,7 @@ int Protocol_setProtocolCount(ProtocolWrites_t *protowrites, size_t newCount) {
 
 int Protocol_removeProtocol(ProtocolWrites_t *protowrites, unsigned int protocolID) {
 
-  _clearQueue(&protowrites->buffer[protocolID]);
+  _clearQueue(&protowrites->buffer[protocolID], -1);
 
   unsigned int i = 0;
   for (i = protocolID; i < protowrites->bufferCount - 1; i++) {
@@ -133,21 +132,15 @@ int Protocol_removeProtocol(ProtocolWrites_t *protowrites, unsigned int protocol
   return Protocol_setProtocolCount(protowrites, protowrites->bufferCount - 1);
 }
 
-void Protocol_clearQueue(ProtocolWrites_t *protowrites, unsigned int protocolID) {
+void Protocol_clearQueue(struct lws *socket, ProtocolWrites_t *protowrites) {
 
-  if (!protowrites->buffer || protocolID >= protowrites->bufferCount)
+  int protoID = getProtocolID(socket);
+  if (!protowrites->buffer || protoID < 0 || protoID > protowrites->bufferCount)
     return;
 
-  _clearQueue(&protowrites->buffer[protocolID]);
+  _clearQueue(&protowrites->buffer[protoID], lws_get_socket_fd(socket));
 }
 
-void Protocol_clearDeadQueue(ProtocolWrites_t *protowrites, unsigned int protocolID, struct lws *socket) {
-
-  if (!protowrites->buffer || protocolID >= protowrites->bufferCount)
-    return;
-
-  _clearDeadQueue(&protowrites->buffer[protocolID], socket);
-}
 
 void Protocol_destroyQueues(ProtocolWrites_t *protowrites) {
 
@@ -156,7 +149,7 @@ void Protocol_destroyQueues(ProtocolWrites_t *protowrites) {
 
   unsigned int i = 0;
   for (i = 0; i < protowrites->bufferCount; i++) {
-    _clearQueue(&protowrites->buffer[i]);
+    _clearQueue(&protowrites->buffer[i], -1);
   }
 
   free(protowrites->buffer);

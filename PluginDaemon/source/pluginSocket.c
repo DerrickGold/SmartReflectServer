@@ -292,7 +292,7 @@ void PluginSocket_writeBuffers(struct lws *wsi) {
     SYSLOG(LOG_ERR, "ERROR: No protocol to write!");
     return;
   }
-  Protocol_processQueue(&protocolWriteQueues, proto->id);
+  Protocol_processQueue(wsi, &protocolWriteQueues);
 }
 
 void PluginSocket_clearWriteBuffers(struct lws *wsi, char onlyDead) {
@@ -303,10 +303,7 @@ void PluginSocket_clearWriteBuffers(struct lws *wsi, char onlyDead) {
     return;
   }
 
-  if (!onlyDead)
-    Protocol_clearQueue(&protocolWriteQueues, proto->id);
-  else
-    Protocol_clearDeadQueue(&protocolWriteQueues, proto->id, wsi);
+  Protocol_clearQueue(wsi, &protocolWriteQueues);
 }
 /*
  * Creates a context instance for a socket server

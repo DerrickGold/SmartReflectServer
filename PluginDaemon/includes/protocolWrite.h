@@ -9,8 +9,11 @@
 
 #define NUM_BUFFERED_WRITES 256
 
+//max number of characters for ipv6
+#define IP_STR_LEN 45
+
 typedef struct BufferedWrite_s {
-    struct lws *socket;
+    int descriptor;
     void *msg;
     size_t len;
 } BufferedWrite_t;
@@ -27,15 +30,13 @@ typedef struct ProtocolWrites_s {
 
 extern void Protocol_addWriteToQueue(ProtocolWrites_t * protowrites, struct lws *socket, void *msg, size_t len);
 
-extern void Protocol_processQueue(ProtocolWrites_t *protowrites, unsigned int protocolID);
+extern void Protocol_processQueue(struct lws *socket, ProtocolWrites_t *protowrites);
 
 extern int Protocol_setProtocolCount(ProtocolWrites_t *protowrites, size_t newCount);
 
 extern int Protocol_removeProtocol(ProtocolWrites_t *protowrites, unsigned int protocolID);
 
-extern void Protocol_clearQueue(ProtocolWrites_t *protowrites, unsigned int protocolID);
-
-extern void Protocol_clearDeadQueue(ProtocolWrites_t *protowrites, unsigned int protocolID, struct lws *socket);
+extern void Protocol_clearQueue(struct lws *socket, ProtocolWrites_t *protowrites);
 
 extern void Protocol_destroyQueues(ProtocolWrites_t *protowrites);
 
