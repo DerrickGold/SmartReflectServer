@@ -17,6 +17,7 @@
 
 
 #define DEFAULT_PORT 5000
+#define DEFAULT_TIMOUT_LEN 1
 
 #define HELP_TEXT \
  "\n%s: [-a server address] [-p PORT_NUM] -c COMMAND [[-x PLUGIN] [-v VALUES]]\n" \
@@ -52,6 +53,8 @@ static char *COMMAND_BUFFER = NULL;
 static char *prgmName = NULL;
 
 static int destroy_flag = 0;
+
+static unsigned int sentTime = 0;
 
 char *server = "localhost";
 
@@ -183,6 +186,7 @@ static int ws_service_callback(struct lws *wsi, enum lws_callback_reasons reason
       //lws_callback_on_writable(wsi);
       free(COMMAND_BUFFER);
       COMMAND_BUFFER = NULL;
+      sentTime = time(NULL);
       break;
 
     case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
@@ -256,9 +260,11 @@ int main(int argc, char *argv[]) {
           *plugin = NULL,
           *values = NULL;
 
+  unsigned int timeoutLen = DEFAULT_TIMOUT_LEN;
+
   //loop through arguments and collect options
   int c;
-  while ((c = getopt(argc, argv, "ha:p:c:x:v:")) != -1) {
+  while ((c = getopt(argc, argv, "ha:p:c:x:v:t:")) != -1) {
 
     switch (c) {
       case 'h':
@@ -278,6 +284,9 @@ int main(int argc, char *argv[]) {
         break;
       case 'v':
         values = optarg;
+        break;
+      case 't':
+        timeoutLen = strtol(optarg, NULL, 10);
         break;
       default:
         //unsupported arguments
@@ -312,7 +321,7 @@ int main(int argc, char *argv[]) {
   protocol.name = protoName;
   protocol.callback = ws_service_callback;
   protocol.per_session_data_size = sizeof(struct session_data);
-  protocol.rx_buffer_size = 128;
+  protocol.rx_buffer_size = 0;
 
   context = lws_create_context(&info);
 
@@ -368,7 +377,13 @@ int main(int argc, char *argv[]) {
   wsi = lws_client_connect_via_info(&i);
   while (!destroy_flag) {
     //wait for connection
-    lws_service(context, 50);
+    lws_service(context, 0);
+
+    //check for timeout after command is sent
+    if(sentTime && time(NULL) - sentTime >= timeoutLen) {
+      destroy_flag = 1;
+      printf("%s:%s:%s::", API_IDENTIFIER, cmd, "fail");
+    }
   }
 
   lws_context_destroy(context);
