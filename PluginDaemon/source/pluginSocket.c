@@ -309,6 +309,11 @@ void PluginSocket_clearWriteBuffers(struct lws *wsi, char onlyDead) {
  * Creates a context instance for a socket server
  * on a specified port number.
  */
+
+ static void logger(int level, char *text) {
+  syslog(LOG_DEBUG, "LLL: %s", text);
+ }
+
 static struct lws_context *_makeContext(int port) {
 
   portNumber = port;
@@ -340,6 +345,7 @@ static struct lws_context *_makeContext(int port) {
   info.max_http_header_pool = 256;
   info.mounts = &indexMount;
 
+  lws_set_log_level(  LLL_ERR | LLL_WARN, &logger);
   //* create libwebsocket context. */
   context = lws_create_context(&info);
   if (context == NULL) {

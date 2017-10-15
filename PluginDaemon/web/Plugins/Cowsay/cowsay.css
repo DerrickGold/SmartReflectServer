@@ -1,12 +1,12 @@
 #Cowsay {
-font-family: courier, courier new, monospace;
-font-size: 18pt;
-white-space: pre;
+	font-family: courier, courier new, monospace;
+	font-size: 18pt;
+	white-space: pre;
 
-position: absolute;
-display: block;
-width: 1000px;
-height: 500px;
-left:0;
-top:800px;
+	position: absolute;
+	display: block;
+	width: 1000px;
+	height: 500px;
+	left:0;
+	top:800px;
 }

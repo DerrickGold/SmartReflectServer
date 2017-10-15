@@ -12,6 +12,7 @@
 #include <signal.h>
 #include <time.h>
 #include <libwebsockets.h>
+#include <syslog.h>
 
 #include "socketResponse.h"
 
@@ -171,10 +172,12 @@ static int websocket_write_back(struct lws *wsi_in, char *str, int str_size_in) 
 
 static int ws_service_callback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *in, size_t len) {
 
+  syslog(LOG_DEBUG, "Callback reason: %d", reason);
   switch (reason) {
 
     case LWS_CALLBACK_CLIENT_ESTABLISHED:
       lws_callback_on_writable(wsi);
+      syslog(LOG_DEBUG, "Client Established");
       break;
 
     case LWS_CALLBACK_CLIENT_WRITEABLE:
@@ -182,6 +185,7 @@ static int ws_service_callback(struct lws *wsi, enum lws_callback_reasons reason
       if (lws_partial_buffered(wsi) || COMMAND_BUFFER == NULL)
         return 0;
 
+      syslog(LOG_DEBUG, "Client Writeable");
       websocket_write_back(wsi, COMMAND_BUFFER, strlen(COMMAND_BUFFER));
       //lws_callback_on_writable(wsi);
       free(COMMAND_BUFFER);
@@ -191,14 +195,16 @@ static int ws_service_callback(struct lws *wsi, enum lws_callback_reasons reason
 
     case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
       destroy_flag = 1;
+      syslog(LOG_ERR, "CONNECTION ERROR");
       break;
 
     case LWS_CALLBACK_CLOSED:
+      syslog(LOG_DEBUG, "Client closed");
       destroy_flag = 1;
       break;
 
     case LWS_CALLBACK_CLIENT_RECEIVE: {
-
+      syslog(LOG_DEBUG, "Client Received data: %s", (char *) in);
       SocketResponse_build(&serverResponse, wsi, (char *) in, len);
       if (SocketResponse_done(&serverResponse)) {
 
@@ -212,13 +218,15 @@ static int ws_service_callback(struct lws *wsi, enum lws_callback_reasons reason
 
         strcpy(response, SocketResponse_get(&serverResponse));
         parseResponse(response, SocketResponse_size(&serverResponse), &identifier, NULL, &status, NULL, NULL);
-
+        syslog(LOG_INFO, "Parsed response{ identifier: %s, status: %s}", identifier, status);
         if (!strcmp(identifier, API_IDENTIFIER)) {
           //only process responses specific to this program
-          if (!strcmp(status, "pending"))
+          if (!strcmp(status, "pending")){
+            syslog(LOG_INFO, "Received pending status, waiting for next response...");
             return 0;
+          }
 
-          printf("%s\n", SocketResponse_get(&serverResponse));
+          //printf("%s\n", SocketResponse_get(&serverResponse));
 
           //if there is no status replied, or the message is not
           //pending, we can exit the program
@@ -242,6 +250,8 @@ static int ws_service_callback(struct lws *wsi, enum lws_callback_reasons reason
 
 int main(int argc, char *argv[]) {
 
+  openlog ("mmcom", LOG_PID, 0);
+  syslog(LOG_INFO, "Started mmcom");
   prgmName = basename(argv[0]);
 
   //No user given arguments provided, print help
@@ -302,7 +312,7 @@ int main(int argc, char *argv[]) {
 
   lws_set_log_level(0, NULL);
 
-  char protoName[] = "STDIN";
+  char protoName[] = "STDIN_LOCAL";
 
   struct lws_context *context = NULL;
   struct lws_context_creation_info info;
@@ -317,6 +327,7 @@ int main(int argc, char *argv[]) {
   info.protocols = &protocol;
   info.gid = -1;
   info.uid = -1;
+  info.options = 0;
 
   protocol.name = protoName;
   protocol.callback = ws_service_callback;
@@ -330,7 +341,8 @@ int main(int argc, char *argv[]) {
 
   const char *prot;
   if (lws_parse_uri(address, &prot, &i.address, &i.port, &i.path)) {
-    printf("Client.c: Error parsing uri\n");
+    //printf("Client.c: Error parsing uri\n");
+    syslog(LOG_CRIT, "Error parsing uri");
     exit(1);
   }
 
@@ -339,12 +351,16 @@ int main(int argc, char *argv[]) {
   else
     i.port = DEFAULT_PORT;
 
+  syslog(LOG_INFO, "MMCOM using port: %d", i.port);
+
   i.context = context;
   i.ssl_connection = 0;
   i.host = i.address;
+  syslog(LOG_INFO, "Connect to: %s", i.address);
   i.origin = i.address;
   i.ietf_version_or_minus_one = -1;
   i.protocol = protoName;
+  syslog(LOG_INFO, "Using websocket protocol: %s", i.protocol);
 
   size_t len = strlen(API_IDENTIFIER) + strlens(cmd) + strlens(plugin) + strlens(values) + 5;
   COMMAND_BUFFER = calloc(len + 1, sizeof(char));
@@ -352,16 +368,18 @@ int main(int argc, char *argv[]) {
     fprintf(stderr, "Generated command string too long!\n");
     return EXIT_FAILURE;
   }
+  COMMAND_BUFFER[0] = '\0';
 
-
+  syslog(LOG_INFO, "CMD_BUFF START: '%s'", COMMAND_BUFFER);
   sprintf(COMMAND_BUFFER, "%s\n", API_IDENTIFIER);
-
+  syslog(LOG_INFO, "API: %s", COMMAND_BUFFER);
 
   //build command
   if (cmd != NULL) {
     strcat(COMMAND_BUFFER, cmd);
     strcat(COMMAND_BUFFER, "\n");
   }
+
   if (plugin != NULL) {
     strcat(COMMAND_BUFFER, plugin);
   }
@@ -372,17 +390,25 @@ int main(int argc, char *argv[]) {
   if (values != NULL)
     strcat(COMMAND_BUFFER, values);
 
+  syslog(LOG_INFO, "Sending command: %s", COMMAND_BUFFER);
+  fprintf(stderr, "Sending command: %s\n", COMMAND_BUFFER);
   memset(&serverResponse, 0, sizeof(SocketResponse_t));
 
-  wsi = lws_client_connect_via_info(&i);
+
+
   while (!destroy_flag) {
-    //wait for connection
-    lws_service(context, 0);
+
+    if (!wsi) {
+      wsi = lws_client_connect_via_info(&i);
+    } else {
+      //wait for connection
+      lws_service(context, 100);
+    }
 
     //check for timeout after command is sent
     if(sentTime && time(NULL) - sentTime >= timeoutLen) {
       destroy_flag = 1;
-      printf("%s:%s:%s::", API_IDENTIFIER, cmd, "fail");
+      syslog(LOG_INFO, "%s:%s:%s::", API_IDENTIFIER, cmd, "fail");
     }
   }
 

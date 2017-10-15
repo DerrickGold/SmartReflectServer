@@ -247,6 +247,8 @@ static void printHelp() {
 
 
 int main(int argc, char *argv[]) {
+  openlog ("SmartReflectServer", LOG_PID, 0);
+  syslog(LOG_INFO, "Started SmartReflectServer");
 
   prgmName = basename(argv[0]);
   int c = 0, port = WEBSOCKET_PORT;
@@ -264,6 +266,7 @@ int main(int argc, char *argv[]) {
         break;
       case 'p':
         port = strtol(optarg, NULL, 10);
+        syslog(LOG_INFO, "Starting magic mirror on port: %d", port);
         break;
       case 'd':
         runDir = optarg;

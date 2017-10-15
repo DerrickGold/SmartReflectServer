@@ -21,6 +21,7 @@
 
 
 #define API_PROTO "STDIN"
+#define API_PROTO_LOCAL "STDIN_LOCAL"
 #define API_PLUGLIST_DELIM "\n"
 #define CLIENT_API_HEADER "[API]"
 
@@ -42,6 +43,8 @@ static int _reboot = 0;
 static SocketResponse_t inputResponse;
 
 static char *pluginsDirectory = NULL;
+
+
 
 static void doAction(struct lws *wsi, char * identifier, APIAction_e action, Plugin_t *plugin, char *value);
 
@@ -628,8 +631,6 @@ static void parseInput(char *input, size_t inputLen, struct lws *wsi) {
  * then forward messages to the proper frontend interface.
  */
 static int apiCallback(struct lws *wsi, websocket_callback_type reason, void *user, void *in, size_t len) {
-
-
   struct lws_protocols *proto = NULL;
   if (wsi) proto = (struct lws_protocols *) lws_get_protocol(wsi);
 
@@ -703,17 +704,23 @@ void API_ShutdownPlugins() {
   SocketResponse_free(&inputResponse);
 }
 
+static void makeApiContext(char *protocol) {
+  //create websocket protocol for standard input
+  struct lws_protocols proto = {};
+  //replace the old _arrayTerminate protocol with an actual protocol
+  proto.name = protocol;
+  proto.callback = &apiCallback;
+  proto.rx_buffer_size = PLUGIN_RX_BUFFER_SIZE;
+  PluginSocket_AddProtocol(&proto);
+}
+
+
 void API_Init(char *pluginDir) {
 
   pluginsDirectory = pluginDir;
 
-  //create websocket protocol for standard input
-  struct lws_protocols proto = {};
-  //replace the old _arrayTerminate protocol with an actual protocol
-  proto.name = API_PROTO;
-  proto.callback = &apiCallback;
-  proto.rx_buffer_size = PLUGIN_RX_BUFFER_SIZE;
-  PluginSocket_AddProtocol(&proto);
+  makeApiContext(API_PROTO);
+  makeApiContext(API_PROTO_LOCAL);
   SocketResponse_free(&inputResponse);
   APIPending_init();
 
@@ -743,8 +750,10 @@ int API_Parse(struct lws *socket, char *in, size_t len) {
 
   size_t headerLen = strlen(CLIENT_API_HEADER);
   //if plugin client wants to make an api call, it needs the API header
-  if (strncmp(in, CLIENT_API_HEADER, headerLen))
+  if (strncmp(in, CLIENT_API_HEADER, headerLen)){
+    //SYSLOG(LOG_INFO, "Missing API header on input: %s", in);
     return 0;
+  }
 
   size_t newLen = len - headerLen;
   char *temp = malloc(newLen);
@@ -756,3 +765,5 @@ int API_Parse(struct lws *socket, char *in, size_t len) {
   free(temp);
   return 1;
 }
+
+

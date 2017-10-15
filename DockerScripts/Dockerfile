@@ -2,13 +2,13 @@ FROM debian:jessie
 MAINTAINER "Derrick Gold"
 
 #grab dependencies
-RUN apt-get update  && apt-get install -y git uuid-dev cmake gcc zlib1g-dev libssl-dev \
+RUN apt-get update  && apt-get install -y git uuid-dev cmake gcc zlib1g-dev libssl-dev fortune-mod cowsay \
     && rm -rf /var/lib/apt/lists/*
 
 
 #install libwebsockets
 RUN git clone https://github.com/warmcat/libwebsockets.git \
-    	&& cd libwebsockets \				       
+    && cd libwebsockets \
 	&& git checkout remotes/origin/v2.0-stable \
 	&& mkdir build \
 	&& cd build \

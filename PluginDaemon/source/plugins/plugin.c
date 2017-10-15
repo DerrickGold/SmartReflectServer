@@ -148,7 +148,7 @@ static int Plugin_SocketCallback(struct lws *wsi, websocket_callback_type reason
         return 0;
 
       Plugin_t *plugin = (Plugin_t *) proto->user;
-      SYSLOG(LOG_INFO, "Plugin_SocketCallback received[%s] %s", proto->name, (char *) in);
+      //SYSLOG(LOG_INFO, "Plugin_SocketCallback received[%s] %s", proto->name, (char *) in);
 
       SocketResponse_t *clientResponse = &plugin->clientResponse;
       SocketResponse_build(clientResponse, wsi, (char *) in, len);

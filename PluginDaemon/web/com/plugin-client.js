@@ -391,7 +391,7 @@ var PluginClient = function(clientSettings) {
 
 
 	this.socketReceive = function(data) {
-		if (this.doLogging)
+		if (instance.doLogging)
 			console.log(data.data);
 		try {
 			instance.parseAction(JSON.parse(data.data));
